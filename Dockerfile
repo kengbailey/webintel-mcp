@@ -14,7 +14,15 @@ RUN apt-get update && apt-get install -y \
     --no-install-recommends \
     curl \
     ffmpeg \
+    unzip \
     && rm -rf /var/lib/apt/lists/*
+
+# Install Deno (required for YouTube JS challenges since yt-dlp 2025.11.12)
+# Install to /usr/local so it's accessible to all users
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
+
+# Verify Deno is installed and accessible
+RUN deno --version
 
 # Copy requirements first to leverage Docker layer caching
 COPY requirements.txt .
@@ -23,8 +31,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# ensure latest version
-RUN pip install --no-cache-dir -U "yt-dlp[default]"
+# Install yt-dlp nightly (--pre) for latest YouTube fixes
+RUN pip install --no-cache-dir -U --pre "yt-dlp[default]"
 
 # Copy the entire src directory and its structure
 COPY src/ ./src/

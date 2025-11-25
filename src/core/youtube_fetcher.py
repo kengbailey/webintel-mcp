@@ -80,6 +80,9 @@ class YouTubeContentFetcher:
                     'Sec-Fetch-Mode': 'navigate',
                 },
                 'nocheckcertificate': True,
+                # Remote components for YouTube JS extraction (fixes 403 errors)
+                'extractor_args': {'youtube': {'player_client': ['web', 'mweb']}},
+                'verbose': True,  # Show detailed output for debugging
             }
 
             # Download
