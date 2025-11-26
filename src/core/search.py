@@ -27,7 +27,7 @@ class SearxngClient:
         Args:
             host: SearxNG server URL (uses default from config if not provided)
         """
-        self.host = host or SearchConfig.DEFAULT_SEARXNG_HOST
+        self.host = host or SearchConfig.SEARXNG_HOST
     
     def _search_raw(
         self, 

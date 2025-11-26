@@ -1,12 +1,35 @@
 services:
+  gluetun:
+    image: qmcgaw/gluetun
+    container_name: gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER
+      - VPN_TYPE
+      - OPENVPN_CUSTOM_CONFIG=/gluetun/custom/config.ovpn
+      - OPENVPN_USER
+      - OPENVPN_PASSWORD
+      - HTTPPROXY=on
+    volumes:
+      - ./gluetun:/gluetun
+    ports:
+      - "8888:8888"
+    restart: unless-stopped
+
   webintel-mcp:
     image: webintel-mcp:latest
     container_name: webintel-mcp
     ports:
       - "3090:3090"
     environment:
-      - SEARXNG_HOST=${SEARXNG_HOST:-http://192.168.8.116:8189}
-      - STT_ENDPOINT=${STT_ENDPOINT:-http://192.168.8.116:8000/v1}
-      - STT_MODEL=${STT_MODEL:-Systran/faster-distil-whisper-large-v3}
-      - STT_API_KEY=${STT_API_KEY:-dummy}
+      - SEARXNG_HOST
+      - STT_ENDPOINT
+      - STT_MODEL
+      - STT_API_KEY
+      - PROXY_URL
+    depends_on:
+      - gluetun
     restart: unless-stopped

@@ -42,7 +42,7 @@ class WebContentFetcher:
         """Fetch content using Jina Reader API."""
         fallback_url = f"https://r.jina.ai/{url}"
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(proxy=SearchConfig.PROXY_URL) as client:
                 response = await client.get(
                         fallback_url,
                         timeout=SearchConfig.FETCH_TIMEOUT,
@@ -147,7 +147,7 @@ class WebContentFetcher:
                 return self._apply_offset_and_chunk(content, offset)
 
             # request
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(proxy=SearchConfig.PROXY_URL) as client:
                 response = await client.get(
                     url,
                     headers=self.headers,
