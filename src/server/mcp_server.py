@@ -9,7 +9,14 @@ from typing import List, Annotated
 from pydantic import Field
 from fastmcp import FastMCP
 from .handlers import SearchHandlers
-from ..core.models import SearchResultOutput, VideoSearchResultOutput, FetchContentOutput, YouTubeContentOutput
+from ..core.models import (
+    SearchResultOutput, 
+    VideoSearchResultOutput, 
+    FetchContentOutput, 
+    YouTubeContentOutput,
+    SubredditPostsOutput,
+    RedditPostOutput
+)
 
 
 # Create the MCP server
@@ -136,6 +143,106 @@ def fetch_youtube_content(
         YouTubeContentOutput with video_id, transcript, and metadata
     """
     return handlers.fetch_youtube_content(video_id)
+
+
+@mcp.tool(
+    name="fetch_subreddit",
+    tags={"reddit", "subreddit", "posts"},
+    annotations={
+        "title": "Fetch Subreddit Posts",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": False
+    }
+)
+async def fetch_subreddit(
+    subreddit: Annotated[str, Field(
+        description="Subreddit name (without r/ prefix, e.g., 'python' or 'accelerate')",
+        min_length=1,
+        max_length=100
+    )],
+    sort: Annotated[str, Field(
+        description="Sort order: hot, new, top, rising, or controversial (default: hot)"
+    )] = "hot",
+    time_filter: Annotated[str, Field(
+        description="Time filter for top/controversial: hour, day, week, month, year, or all (optional)"
+    )] = None,
+    limit: Annotated[int, Field(
+        description="Number of posts to fetch (default: 25, min: 1, max: 100)",
+        ge=1,
+        le=100
+    )] = 25,
+    after: Annotated[str, Field(
+        description="Pagination cursor from previous response (optional)"
+    )] = None
+) -> SubredditPostsOutput:
+    """
+    Fetch posts from a subreddit using old.reddit.com API.
+    
+    Retrieves a list of posts with title, author, score, comments count,
+    and other metadata. Supports pagination via the 'after' cursor.
+    
+    Returns:
+        SubredditPostsOutput with posts list and pagination info
+    """
+    return await handlers.fetch_subreddit(
+        subreddit=subreddit,
+        sort=sort,
+        time_filter=time_filter,
+        limit=limit,
+        after=after
+    )
+
+
+@mcp.tool(
+    name="fetch_subreddit_post",
+    tags={"reddit", "post", "comments"},
+    annotations={
+        "title": "Fetch Subreddit Post with Comments",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": False
+    }
+)
+async def fetch_subreddit_post(
+    subreddit: Annotated[str, Field(
+        description="Subreddit name (without r/ prefix, e.g., 'python')",
+        min_length=1,
+        max_length=100
+    )],
+    post_id: Annotated[str, Field(
+        description="Reddit post ID (without t3_ prefix, e.g., '1p6j7ht')",
+        min_length=1,
+        max_length=20
+    )],
+    sort: Annotated[str, Field(
+        description="Comment sort: confidence, top, new, controversial, old, or qa (default: confidence)"
+    )] = "confidence",
+    limit: Annotated[int, Field(
+        description="Maximum comments to fetch (default: 100, min: 1, max: 500)",
+        ge=1,
+        le=500
+    )] = 100,
+    depth: Annotated[int, Field(
+        description="Maximum reply nesting depth (optional, min: 1)"
+    )] = None
+) -> RedditPostOutput:
+    """
+    Fetch a Reddit post with its comments using old.reddit.com API.
+    
+    Retrieves the post content including title, body, media URLs, and all
+    comments with nested replies maintaining parent-child relationships.
+    
+    Returns:
+        RedditPostOutput with detailed post and comment tree
+    """
+    return await handlers.fetch_subreddit_post(
+        subreddit=subreddit,
+        post_id=post_id,
+        sort=sort,
+        limit=limit,
+        depth=depth
+    )
 
 
 def run_server():

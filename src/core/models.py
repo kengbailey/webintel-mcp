@@ -94,3 +94,60 @@ class RawSearxngResponse(BaseModel):
     infoboxes: List[dict] = []
     suggestions: List[str] = []
     unresponsive_engines: List[List[str]] = []
+
+
+# Reddit models
+class RedditPostSummary(BaseModel):
+    """Summary of a Reddit post (for listings)."""
+    id: str
+    title: str
+    author: str
+    subreddit: str
+    score: int
+    num_comments: int
+    created_utc: float
+    url: str
+    permalink: str
+    is_self: bool
+    selftext: Optional[str] = None
+    thumbnail: Optional[str] = None
+    link_flair_text: Optional[str] = None
+
+
+class RedditComment(BaseModel):
+    """A Reddit comment with metadata."""
+    id: str
+    author: str
+    body: str
+    parent_id: str  # e.g., "t3_abc123" for post, "t1_def456" for comment
+    created_utc: float
+    replies: List["RedditComment"] = []  # Nested replies
+
+
+class RedditPostDetail(BaseModel):
+    """Detailed Reddit post with content and metadata."""
+    title: str
+    author: str
+    num_comments: int
+    created_utc: float
+    url: str
+    is_self: bool
+    selftext: Optional[str] = None
+    media_urls: List[str] = []  # Extracted media/image URLs
+    comments: List[RedditComment] = []
+
+
+class SubredditPostsOutput(BaseModel):
+    """Output model for subreddit posts listing."""
+    subreddit: str
+    sort: str
+    time_filter: Optional[str] = None
+    posts: List[RedditPostSummary]
+    after_cursor: Optional[str] = None  # For pagination
+    success: bool
+
+
+class RedditPostOutput(BaseModel):
+    """Output model for single Reddit post with comments."""
+    post: RedditPostDetail
+    success: bool
