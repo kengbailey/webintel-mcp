@@ -1,5 +1,8 @@
 services:
+  # Gluetun VPN container - only starts with --profile vpn
+  # Usage: docker compose --profile vpn up -d
   gluetun:
+    profiles: ["vpn"]
     image: qmcgaw/gluetun
     container_name: gluetun
     cap_add:
@@ -30,6 +33,4 @@ services:
       - STT_MODEL
       - STT_API_KEY
       - PROXY_URL
-    depends_on:
-      - gluetun
     restart: unless-stopped
