@@ -35,7 +35,8 @@ class SearchConfig:
     STT_API_KEY = os.getenv('STT_API_KEY')
     
     # Proxy configuration (for routing fetch operations through VPN)
-    PROXY_URL = os.getenv('PROXY_URL')
+    # Convert empty string to None so httpx/yt-dlp use direct connection
+    PROXY_URL = os.getenv('PROXY_URL') or None
 
 
 class SearchException(Exception):
