@@ -54,3 +54,4 @@ wheels/
 *.egg
 MANIFEST
 src/core/test.ipynb
+.venv/
