@@ -46,4 +46,5 @@ USER appuser
 EXPOSE 3090
 
 # Run the server using the new module structure
-CMD ["python", "-m", "src.server.mcp_server", "--http"]
+# Transport controlled via MCP_TRANSPORT env var (http|sse), defaults to http
+CMD ["python", "-m", "src.server.mcp_server"]
