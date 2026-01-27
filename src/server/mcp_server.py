@@ -4,6 +4,7 @@ Provides general web search capabilities via SearxNG
 """
 
 import argparse
+import os
 import sys
 from typing import List, Annotated
 from pydantic import Field
@@ -246,24 +247,33 @@ async def fetch_subreddit_post(
 
 
 def run_server():
-    """Run the MCP server with appropriate transport and configurable port."""
-    # args
+    """Run the MCP server with appropriate transport and configurable port.
+    
+    Transport priority:
+    1. CLI flags (--http or --sse)
+    2. Environment variable (MCP_TRANSPORT=http|sse)
+    3. Default: http
+    """
     parser = argparse.ArgumentParser(description="Run MCP server with configurable transport and port")
-    parser.add_argument('--port', type=int, default=3090, help='Port number for HTTP transport (default: 3090)')
+    parser.add_argument('--port', type=int, default=int(os.getenv('MCP_PORT', '3090')), 
+                        help='Port number (default: 3090, or MCP_PORT env var)')
     parser.add_argument('--http', action='store_true', help='Run server with HTTP transport')
     parser.add_argument('--sse', action='store_true', help='Run server with SSE transport')
     args = parser.parse_args()
 
-    # Run server with appropriate transport and port
+    # Determine transport: CLI flags take precedence, then env var, then default
     if args.http:
-        mcp.run(transport="http", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with HTTP transport")
+        transport = "http"
     elif args.sse:
-        mcp.run(transport="sse", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with SSE transport")
+        transport = "sse"
     else:
-        mcp.run(transport="http", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with HTTP transport")
+        transport = os.getenv('MCP_TRANSPORT', 'http').lower()
+        if transport not in ('http', 'sse'):
+            print(f"Warning: Invalid MCP_TRANSPORT '{transport}', defaulting to 'http'")
+            transport = "http"
+
+    print(f"Starting WebIntel MCP server on http://0.0.0.0:{args.port} with {transport.upper()} transport")
+    mcp.run(transport=transport, host="0.0.0.0", port=args.port)
 
 
 

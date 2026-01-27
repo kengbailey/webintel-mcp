@@ -33,4 +33,8 @@ services:
       - STT_MODEL
       - STT_API_KEY
       - PROXY_URL
+      # Transport options: http (default) or sse
+      - MCP_TRANSPORT=${MCP_TRANSPORT:-http}
+      # Optional: override port (default: 3090)
+      # - MCP_PORT=3090
     restart: unless-stopped
