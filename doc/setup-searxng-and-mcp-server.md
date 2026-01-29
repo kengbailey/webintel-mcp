@@ -1,11 +1,19 @@
-## How to setup SearxNG and the MCP server using docker 
+## Advanced: External SearxNG Setup
+
+> **Note:** WebIntel MCP now includes a bundled SearxNG instance. You only need this guide if you want to run SearxNG as a separate, standalone service.
+>
+> For the standard setup, just run `docker compose up -d` — see the [main README](/README.md).
+
+---
+
+### Setting up a standalone SearxNG instance
 
 1. Create a directory for your SearxNG data:
 ```bash
 mkdir searxng-data
 ```
-2. Create a [searxng-compose.yml](/doc/searxng-compose.yml) for Searxng. 
-- Be sure to update the volume to your local directory. 
+
+2. Create a [searxng-compose.yml](/doc/searxng-compose.yml) for SearxNG:
 ```yaml
 services:
   searxng:
@@ -18,17 +26,18 @@ services:
       - ./searxng-data:/etc/searxng:rw
 ```
 
-3. Run Searxng compose
-```bash 
+3. Run SearxNG compose:
+```bash
 docker compose -f searxng-compose.yml up -d
 ```
 
-4. Stop Searxng container and update settings 
+4. Stop SearxNG and update settings:
 ```bash
 docker compose -f searxng-compose.yml down
 ```
-- First run will create a settings.yaml file in the searxng-data directory. 
-- Update the [settings.yaml](/doc/settings.yml) in new directory to look like this
+
+The first run creates a `settings.yaml` file in the `searxng-data` directory. Update it to enable JSON API access:
+
 ```yaml
 use_default_settings: true
 
@@ -59,26 +68,22 @@ engines:
 server.limiter: false
 ```
 
-5. Start your Searxng container again after updating the file
+5. Start SearxNG again:
 ```bash
-docker compose searxng-compose.yml up -d
+docker compose -f searxng-compose.yml up -d
 ```
 
-6. Create and run the [webintel-mcp-compose.yml](/doc/searxng-mcp-compose.yaml) docker container
-```yaml
-services:
-  webintel-mcp:
-    image: ghcr.io/kengbailey/webintel-mcp:latest
-    container_name: webintel-mcp
-    ports:
-      - "3090:3090"
-    environment:
-      - SEARXNG_HOST=http://localhost:8080
-    restart: unless-stopped
-```
+6. Run WebIntel MCP pointing to your external instance:
 ```bash
-docker compose webintel-mcp-compose.yml up -d
+docker run -p 3090:3090 -e SEARXNG_HOST=http://localhost:8189 ghcr.io/kengbailey/webintel-mcp:latest
 ```
-You should have a running SearXNG service and WebIntel MCP server
-- SearXNG: http://localhost:8189/search
+
+Or using Docker Compose:
+```bash
+SEARXNG_HOST=http://localhost:8189 docker compose up webintel-mcp -d
+```
+
+### Verification
+
+- SearxNG: http://localhost:8189/search
 - WebIntel MCP: http://localhost:3090/mcp
