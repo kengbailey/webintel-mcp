@@ -1,0 +1,30 @@
+# SearxNG Settings for WebIntel MCP
+# This is the default configuration for the bundled SearxNG instance.
+# For full options, see: https://docs.searxng.org/admin/settings/index.html
+
+use_default_settings: true
+
+server:
+  bind_address: "0.0.0.0"
+  secret_key: "change-me-to-a-random-string"
+  port: 8080
+  limiter: false  # Internal service, no public exposure
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json  # Required for API access by WebIntel MCP
+
+engines:
+  - name: google
+    engine: google
+    shortcut: g
+
+  - name: duckduckgo
+    engine: duckduckgo
+    shortcut: d
+
+  - name: bing
+    engine: bing
+    shortcut: b
