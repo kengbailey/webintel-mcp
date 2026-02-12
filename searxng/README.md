@@ -16,6 +16,6 @@ Edit `settings.yml` to:
 - Add/remove search engines
 - Adjust search settings
 
-The `secret_key` is set via the `SEARXNG_SECRET` environment variable in `.env` (not in this file). Generate one with `openssl rand -hex 32`.
+- Change the `secret_key` (recommended for production)
 
 See [SearxNG documentation](https://docs.searxng.org/admin/settings/index.html) for all options.
