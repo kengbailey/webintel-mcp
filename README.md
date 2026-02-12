@@ -1,90 +1,151 @@
 # WebIntel MCP
 
-A powerful FastMCP server providing intelligent web search and content retrieval tools for AI assistants. Includes a bundled SearxNG instance — no external dependencies required.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-green.svg)](https://www.python.org)
+[![FastMCP](https://img.shields.io/badge/FastMCP-3.0-purple.svg)](https://github.com/jlowin/fastmcp)
+
+A FastMCP server providing web search, content fetching, YouTube transcription, and Reddit browsing tools for AI assistants. Includes a bundled SearxNG instance — no external dependencies required.
 
 ## Tools
 
-- **`search`** - Returns full search results with titles, URLs, snippets, scores
-  - `query` (required) - search terms
-  - `max_results` (optional) - number of results (default: 10, max: 25)
-- **`search_videos`** - Search for YouTube videos
-  - `query` (required) - video search terms
-  - `max_results` (optional) - number of results (default: 10, max: 20)
+### Search
+
+- **`search`** — Web search via SearxNG
+  - `query` (required) — search terms
+  - `max_results` (optional, default: 10, max: 25)
+  - Returns: title, url, content snippet, score
+
+- **`search_videos`** — YouTube video search
+  - `query` (required) — video search terms
+  - `max_results` (optional, default: 10, max: 20)
   - Returns: url, title, author, content summary, length
-- **`fetch_content`** - Returns the content of a URL with pagination support
-  - `url` (required) - URL to fetch content from
-  - `offset` (optional) - starting position for content retrieval (default: 0)
-  - **Pagination**: Content is retrieved in 30K character chunks. When truncated, use the `next_offset` value from the response to fetch the next chunk.
-- **`fetch_youtube_content`** - Fetch and transcribe YouTube video audio
-  - `video_id` (required) - YouTube video ID or full URL (e.g., 'dQw4w9WgXcQ' or 'https://www.youtube.com/watch?v=dQw4w9WgXcQ')
-  - Returns: video_id, transcript, transcript_length, success
-  - **Note**: Requires a running STT (Speech-to-Text) service endpoint
+
+### Content Fetching
+
+- **`fetch_content`** — Fetch and extract readable content from any URL
+  - `url` (required) — URL to fetch
+  - `offset` (optional, default: 0) — pagination offset
+  - Content is returned in 30K character chunks. Use `next_offset` from the response to paginate.
+
+- **`fetch_youtube_content`** — Download and transcribe YouTube video audio
+  - `video_id` (required) — video ID or full URL (e.g. `dQw4w9WgXcQ` or `https://www.youtube.com/watch?v=dQw4w9WgXcQ`)
+  - Returns: video_id, transcript, transcript_length
+  - Requires: STT endpoint (see [Configuration](#configuration))
+
+### Reddit
+
+- **`fetch_subreddit`** — Browse subreddit posts
+  - `subreddit` (required) — subreddit name without `r/` prefix
+  - `sort` (optional, default: `hot`) — hot, new, top, rising, controversial
+  - `time_filter` (optional) — hour, day, week, month, year, all (for top/controversial)
+  - `limit` (optional, default: 25, max: 100)
+  - `after` (optional) — pagination cursor from previous response
+  - Returns: post summaries with title, author, score, comment count, url
+
+- **`fetch_subreddit_post`** — Fetch a post with full comment tree
+  - `subreddit` (required) — subreddit name without `r/` prefix
+  - `post_id` (required) — post ID without `t3_` prefix
+  - `sort` (optional, default: `confidence`) — confidence, top, new, controversial, old, qa
+  - `limit` (optional, default: 100, max: 500) — max comments
+  - `depth` (optional) — max reply nesting depth
+  - Returns: post detail with selftext, media URLs, and nested comments
 
 ## Quick Start
 
-The easiest way to get running — SearxNG is included as a bundled service:
-
 ```bash
-# Clone the repo
 git clone https://github.com/kengbailey/webintel-mcp.git
 cd webintel-mcp
 
-# Build and start everything (WebIntel MCP + SearxNG)
 docker build -t webintel-mcp .
 docker compose up -d
 ```
 
-That's it! The server will be available at `http://localhost:3090/mcp`
+Server available at `http://localhost:3090/mcp`
 
-### What starts:
-- **WebIntel MCP** — MCP server on port `3090`
-- **SearxNG** — Search backend (internal only, not exposed to host)
+This starts **WebIntel MCP** (port 3090) and **SearxNG** (internal, not exposed).
 
-## Use with Docker
+## Connecting MCP Clients
+
+### Claude Desktop
+
+Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "webintel": {
+      "url": "http://localhost:3090/mcp"
+    }
+  }
+}
+```
+
+### Cursor
+
+Add to `.cursor/mcp.json` in your project:
+
+```json
+{
+  "mcpServers": {
+    "webintel": {
+      "url": "http://localhost:3090/mcp"
+    }
+  }
+}
+```
+
+### mcporter
+
+```bash
+mcporter call webintel-mcp.search query="latest news" max_results=5
+mcporter call webintel-mcp.fetch_content url="https://example.com"
+mcporter call webintel-mcp.fetch_subreddit subreddit="python" sort="top" time_filter="week"
+```
+
+## Docker Options
 
 ### Option A: Bundled SearxNG (recommended)
 
-Use Docker Compose to run both services together:
-
 ```bash
-# Build the WebIntel MCP image
 docker build -t webintel-mcp .
-
-# Start everything
 docker compose up -d
 ```
 
 ### Option B: External SearxNG
 
-If you already have a SearxNG instance, point to it with `SEARXNG_HOST`:
-
 ```bash
-# Pull latest image
-docker pull ghcr.io/kengbailey/webintel-mcp:latest
-
-# Run with your SearxNG instance
-docker run -p 3090:3090 -e SEARXNG_HOST=http://your-searxng:8189 ghcr.io/kengbailey/webintel-mcp:latest
+docker run -p 3090:3090 \
+  -e SEARXNG_HOST=http://your-searxng:8189 \
+  ghcr.io/kengbailey/webintel-mcp:latest
 ```
 
-Or override in Docker Compose:
+Or override in Compose:
+
 ```bash
 SEARXNG_HOST=http://your-searxng:8189 docker compose up webintel-mcp -d
 ```
 
-See [Advanced: External SearxNG Setup](/doc/setup-searxng-and-mcp-server.md) for full instructions on running a standalone SearxNG instance.
+See [Advanced: External SearxNG Setup](/doc/setup-searxng-and-mcp-server.md) for standalone SearxNG instructions.
 
 ### Option C: With VPN
 
-Route search requests through a VPN using the gluetun profile:
+Route all requests through a VPN using [Gluetun](https://github.com/qdm12/gluetun):
 
 ```bash
-# Configure VPN credentials in .env
 cp .env.example .env
-# Edit .env with your VPN details
+# Edit .env — set VPN_SERVICE_PROVIDER, OPENVPN_USER, OPENVPN_PASSWORD
+# Set PROXY_URL=http://gluetun:8888
+# Set SEARXNG_HOST=http://gluetun:8080
 
-# Start with VPN
+# Place your .ovpn config in gluetun/custom/config.ovpn
+
 docker compose --profile vpn up -d
 ```
+
+When using the VPN profile:
+- **SearxNG** shares Gluetun's network stack — all search engine queries route through the VPN
+- **Fetcher tools** (fetch_content, fetch_youtube_content, fetch_subreddit, fetch_subreddit_post) use the HTTP proxy at `PROXY_URL`
+- Without VPN (`docker compose up -d`), everything connects directly
 
 ## Configuration
 
@@ -96,19 +157,60 @@ cp .env.example .env
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `SEARXNG_HOST` | `http://searxng:8080` | SearxNG API endpoint |
-| `MCP_TRANSPORT` | `http` | Transport mode: `http` or `sse` |
-| `STT_ENDPOINT` | — | Speech-to-text API endpoint |
+| `SEARXNG_HOST` | `http://searxng:8080` | SearxNG API endpoint. Use `http://gluetun:8080` with VPN profile. |
+| `MCP_TRANSPORT` | `http` | Transport: `http` (Streamable HTTP) or `sse` (Server-Sent Events) |
+| `STT_ENDPOINT` | — | Speech-to-text API endpoint (OpenAI-compatible, e.g. faster-whisper) |
 | `STT_MODEL` | — | STT model name |
 | `STT_API_KEY` | — | STT API key |
-| `PROXY_URL` | — | HTTP proxy for outbound requests |
+| `PROXY_URL` | — | HTTP proxy for outbound requests (e.g. `http://gluetun:8888`) |
+| `VPN_SERVICE_PROVIDER` | — | Gluetun VPN provider (use `custom` for .ovpn files) |
+| `VPN_TYPE` | — | VPN type (`openvpn` or `wireguard`) |
+| `OPENVPN_USER` | — | VPN username |
+| `OPENVPN_PASSWORD` | — | VPN password |
+
+## Local Development
+
+```bash
+# Clone and setup
+git clone https://github.com/kengbailey/webintel-mcp.git
+cd webintel-mcp
+
+# Create venv (Python 3.11+)
+python -m venv .venv
+source .venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Set environment
+export SEARXNG_HOST=http://localhost:8080  # or your SearxNG instance
+
+# Run the server
+python -m src.server.mcp_server
+
+# Run tests
+python -m pytest tests/ -v --ignore=tests/test_searxng_integration.py
+```
+
+### YouTube Transcription Requirements
+
+The `fetch_youtube_content` tool requires:
+- **ffmpeg** — audio extraction and conversion
+- **Deno** — required by yt-dlp for YouTube JS challenges (since yt-dlp 2025.11.12)
+- **STT endpoint** — OpenAI-compatible speech-to-text API (e.g. [faster-whisper-server](https://github.com/fedirz/faster-whisper-server), [Speaches](https://github.com/speaches-ai/speaches))
+
+The Docker image includes ffmpeg and Deno. For local development, install them separately.
 
 ## SearxNG Configuration
 
-The bundled SearxNG instance is configured via `searxng/settings.yml`. The default configuration:
+The bundled SearxNG instance is configured via `searxng/settings.yml`:
 
-- Enables JSON API format (required for WebIntel MCP)
-- Disables rate limiting (internal service)
-- Configures Google, DuckDuckGo, and Bing search engines
+- JSON API format enabled (required for WebIntel MCP)
+- Rate limiting disabled (internal service)
+- Google, DuckDuckGo, and Bing search engines enabled
 
 See `searxng/README.md` for customization options.
+
+## License
+
+[MIT](LICENSE)
