@@ -1,5 +1,7 @@
 services:
   # Bundled SearxNG instance — provides search API for WebIntel MCP
+  # When using --profile vpn, SearxNG shares Gluetun's network stack
+  # so all its outbound requests route through the VPN.
   searxng:
     image: docker.io/searxng/searxng:latest
     container_name: searxng
@@ -15,6 +17,8 @@ services:
 
   # Gluetun VPN container — only starts with --profile vpn
   # Usage: docker compose --profile vpn up -d
+  # When active, SearxNG attaches to Gluetun's network (see searxng-vpn)
+  # and its port 8080 is exposed through Gluetun.
   gluetun:
     profiles: ["vpn"]
     image: qmcgaw/gluetun
@@ -34,7 +38,26 @@ services:
       - ./gluetun:/gluetun
     ports:
       - "8888:8888"
+      - "8080:8080"  # SearxNG (exposed here when using VPN profile)
     restart: unless-stopped
+
+  # SearxNG routed through VPN — replaces standalone searxng when using --profile vpn
+  searxng-vpn:
+    profiles: ["vpn"]
+    image: docker.io/searxng/searxng:latest
+    container_name: searxng-vpn
+    network_mode: "service:gluetun"
+    depends_on:
+      - gluetun
+    volumes:
+      - ./searxng:/etc/searxng:rw
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   webintel-mcp:
     image: webintel-mcp:latest
