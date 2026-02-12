@@ -161,15 +161,6 @@ class TestSearchEndToEnd:
 
     def test_search_returns_results(self, docker_stack):
         """Search for a common term should return results."""
-        from src.core.search import SearxngClient
-
-        # Connect directly to the SearxNG container on the Docker network
-        # From the host, SearxNG is accessible via the mapped webintel-mcp
-        # We test via the MCP server's search functionality
-        client = SearxngClient(host="http://localhost:3090")
-
-        # The client expects SearxNG directly, but we're behind MCP
-        # Instead, test SearxNG through Docker's exposed port
         # SearxNG isn't exposed to host, so we exec into the container
         result = subprocess.run(
             [

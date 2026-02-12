@@ -6,7 +6,7 @@ use_default_settings: true
 
 server:
   bind_address: "0.0.0.0"
-  secret_key: "change-me-to-a-random-string"
+  # secret_key is set via SEARXNG_SECRET env var (auto-generated at startup)
   port: 8080
   limiter: false  # Internal service, no public exposure
 

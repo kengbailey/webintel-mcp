@@ -29,6 +29,10 @@ The easiest way to get running — SearxNG is included as a bundled service:
 git clone https://github.com/kengbailey/webintel-mcp.git
 cd webintel-mcp
 
+# Generate config (creates .env with a random SearxNG secret key)
+cp .env.example .env
+sed -i '' "s/SEARXNG_SECRET=.*/SEARXNG_SECRET=$(openssl rand -hex 32)/" .env
+
 # Build and start everything (WebIntel MCP + SearxNG)
 docker build -t webintel-mcp .
 docker compose up -d
