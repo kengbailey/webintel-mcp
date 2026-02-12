@@ -246,6 +246,44 @@ async def fetch_subreddit_post(
     )
 
 
+def resolve_transport(cli_http=False, cli_sse=False, env_transport=None):
+    """Resolve transport from CLI flags and environment variable.
+    
+    Priority:
+    1. CLI flags (--http or --sse)
+    2. Environment variable (MCP_TRANSPORT=http|sse)
+    3. Default: http
+    
+    Returns:
+        tuple: (transport, warning) where warning is None or a string message
+    """
+    if cli_http:
+        return "http", None
+    if cli_sse:
+        return "sse", None
+    
+    transport = (env_transport or "http").lower()
+    if transport not in ("http", "sse"):
+        return "http", f"Warning: Invalid MCP_TRANSPORT '{transport}', defaulting to 'http'"
+    return transport, None
+
+
+def resolve_port(cli_port=None, env_port=None, default=3090):
+    """Resolve port from CLI argument and environment variable.
+    
+    Returns:
+        int: resolved port number
+    """
+    if cli_port is not None:
+        return cli_port
+    if env_port is not None:
+        try:
+            return int(env_port)
+        except (ValueError, TypeError):
+            return default
+    return default
+
+
 def run_server():
     """Run the MCP server with appropriate transport and configurable port.
     
@@ -261,16 +299,13 @@ def run_server():
     parser.add_argument('--sse', action='store_true', help='Run server with SSE transport')
     args = parser.parse_args()
 
-    # Determine transport: CLI flags take precedence, then env var, then default
-    if args.http:
-        transport = "http"
-    elif args.sse:
-        transport = "sse"
-    else:
-        transport = os.getenv('MCP_TRANSPORT', 'http').lower()
-        if transport not in ('http', 'sse'):
-            print(f"Warning: Invalid MCP_TRANSPORT '{transport}', defaulting to 'http'")
-            transport = "http"
+    transport, warning = resolve_transport(
+        cli_http=args.http,
+        cli_sse=args.sse,
+        env_transport=os.getenv('MCP_TRANSPORT'),
+    )
+    if warning:
+        print(warning)
 
     print(f"Starting WebIntel MCP server on http://0.0.0.0:{args.port} with {transport.upper()} transport")
     mcp.run(transport=transport, host="0.0.0.0", port=args.port)
