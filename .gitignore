@@ -55,3 +55,6 @@ wheels/
 MANIFEST
 src/core/test.ipynb
 .venv/
+
+# SearxNG runtime data (auto-generated on first run)
+searxng/uwsgi.ini
