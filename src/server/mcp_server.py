@@ -4,6 +4,7 @@ Provides general web search capabilities via SearxNG
 """
 
 import argparse
+import os
 import sys
 from typing import List, Annotated
 from pydantic import Field
@@ -245,25 +246,69 @@ async def fetch_subreddit_post(
     )
 
 
+def resolve_transport(cli_http=False, cli_sse=False, env_transport=None):
+    """Resolve transport from CLI flags and environment variable.
+    
+    Priority:
+    1. CLI flags (--http or --sse)
+    2. Environment variable (MCP_TRANSPORT=http|sse)
+    3. Default: http
+    
+    Returns:
+        tuple: (transport, warning) where warning is None or a string message
+    """
+    if cli_http:
+        return "http", None
+    if cli_sse:
+        return "sse", None
+    
+    transport = (env_transport or "http").lower()
+    if transport not in ("http", "sse"):
+        return "http", f"Warning: Invalid MCP_TRANSPORT '{transport}', defaulting to 'http'"
+    return transport, None
+
+
+def resolve_port(cli_port=None, env_port=None, default=3090):
+    """Resolve port from CLI argument and environment variable.
+    
+    Returns:
+        int: resolved port number
+    """
+    if cli_port is not None:
+        return cli_port
+    if env_port is not None:
+        try:
+            return int(env_port)
+        except (ValueError, TypeError):
+            return default
+    return default
+
+
 def run_server():
-    """Run the MCP server with appropriate transport and configurable port."""
-    # args
+    """Run the MCP server with appropriate transport and configurable port.
+    
+    Transport priority:
+    1. CLI flags (--http or --sse)
+    2. Environment variable (MCP_TRANSPORT=http|sse)
+    3. Default: http
+    """
     parser = argparse.ArgumentParser(description="Run MCP server with configurable transport and port")
-    parser.add_argument('--port', type=int, default=3090, help='Port number for HTTP transport (default: 3090)')
+    parser.add_argument('--port', type=int, default=int(os.getenv('MCP_PORT', '3090')), 
+                        help='Port number (default: 3090, or MCP_PORT env var)')
     parser.add_argument('--http', action='store_true', help='Run server with HTTP transport')
     parser.add_argument('--sse', action='store_true', help='Run server with SSE transport')
     args = parser.parse_args()
 
-    # Run server with appropriate transport and port
-    if args.http:
-        mcp.run(transport="http", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with HTTP transport")
-    elif args.sse:
-        mcp.run(transport="sse", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with SSE transport")
-    else:
-        mcp.run(transport="http", host="0.0.0.0", port=args.port)
-        print(f"Server running on http://0.0.0.0:{args.port} with HTTP transport")
+    transport, warning = resolve_transport(
+        cli_http=args.http,
+        cli_sse=args.sse,
+        env_transport=os.getenv('MCP_TRANSPORT'),
+    )
+    if warning:
+        print(warning)
+
+    print(f"Starting WebIntel MCP server on http://0.0.0.0:{args.port} with {transport.upper()} transport")
+    mcp.run(transport=transport, host="0.0.0.0", port=args.port)
 
 
 
