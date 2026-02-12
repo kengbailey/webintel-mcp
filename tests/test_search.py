@@ -7,7 +7,7 @@ from unittest.mock import patch, Mock
 import requests
 
 from src.core.search import SearxngClient, search_general, search_videos
-from src.core.config import SearchRequestException, SearchParseException
+from src.core.config import SearchConfig, SearchRequestException, SearchParseException
 from src.core.models import RawSearxngResponse, RawResult
 
 
@@ -18,9 +18,10 @@ class TestSearxngClient:
         self.client = SearxngClient()
     
     def test_init_default_host(self):
-        """Test client initialization with default host."""
+        """Test client initialization with default host from env."""
         client = SearxngClient()
-        assert 'berry:8189' in client.host
+        # Host comes from SEARXNG_HOST env var; may be None if unset
+        assert client.host == SearchConfig.SEARXNG_HOST
     
     def test_init_custom_host(self):
         """Test client initialization with custom host."""

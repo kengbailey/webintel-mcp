@@ -80,15 +80,14 @@ class YouTubeContentFetcher:
                     'Sec-Fetch-Mode': 'navigate',
                 },
                 'nocheckcertificate': True,
-                # Remote components for YouTube JS extraction (fixes 403 errors)
-                'extractor_args': {'youtube': {'player_client': ['web', 'mweb']}},
                 'verbose': True,  # Show detailed output for debugging
                 # Proxy configuration for VPN routing
                 'proxy': SearchConfig.PROXY_URL,
             }
 
-            # Download
+            # Download — js_runtimes must be set post-init for yt-dlp to pick up
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.params['js_runtimes'] = {'node': {}, 'deno': {}, 'bun': {}}
                 ydl.download([video_input])
             
             if not audio_path.exists():
