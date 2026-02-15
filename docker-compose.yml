@@ -60,6 +60,7 @@ services:
       start_period: 10s
 
   webintel-mcp:
+    build: .
     image: webintel-mcp:latest
     container_name: webintel-mcp
     ports:
