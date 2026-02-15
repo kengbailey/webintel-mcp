@@ -1,4 +1,4 @@
-"""Tests for comment recursion depth limiting."""
+"""Tests for comment recursion depth limiting and flat output."""
 
 import pytest
 from src.server.handlers import SearchHandlers
@@ -29,76 +29,64 @@ def _make_nested_comments(depth: int) -> list:
 
 
 class TestCommentRecursionDepth:
-    """Test that comment parsing respects max_depth to prevent recursion overflow."""
+    """Test that comment parsing respects max_depth and returns flat list."""
 
     def setup_method(self):
         self.handlers = SearchHandlers()
 
     def test_shallow_comments_parsed_fully(self):
-        """Comments within max_depth should be fully parsed."""
+        """Comments within max_depth should all appear in flat list."""
         children = _make_nested_comments(3)
         comments = self.handlers._parse_reddit_comments(children, max_depth=10)
         
-        assert len(comments) == 1
+        assert len(comments) == 3
         assert comments[0].id == "comment_3"
-        
-        # Should have nested replies
-        assert len(comments[0].replies) == 1
-        assert comments[0].replies[0].id == "comment_2"
-        assert len(comments[0].replies[0].replies) == 1
-        assert comments[0].replies[0].replies[0].id == "comment_1"
+        assert comments[0].depth == 0
+        assert comments[1].id == "comment_2"
+        assert comments[1].depth == 1
+        assert comments[2].id == "comment_1"
+        assert comments[2].depth == 2
 
     def test_depth_capped_at_max_depth(self):
-        """Comments beyond max_depth should have empty replies."""
+        """Comments beyond max_depth should not appear."""
         children = _make_nested_comments(5)
         comments = self.handlers._parse_reddit_comments(children, max_depth=2)
         
-        assert len(comments) == 1
-        # Depth 0 -> depth 1 -> depth 2 (stop)
-        level1 = comments[0]
-        assert level1.id == "comment_5"
-        assert len(level1.replies) == 1
-        
-        level2 = level1.replies[0]
-        assert level2.id == "comment_4"
-        # max_depth=2, so depth 2 should NOT recurse further
-        assert len(level2.replies) == 0
+        # Should get depth 0 and depth 1 only
+        assert len(comments) == 2
+        assert comments[0].id == "comment_5"
+        assert comments[0].depth == 0
+        assert comments[1].id == "comment_4"
+        assert comments[1].depth == 1
 
-    def test_max_depth_zero_no_replies(self):
-        """max_depth=0 should return top-level comments with no replies."""
+    def test_max_depth_zero_top_level_only(self):
+        """max_depth=0 should return no comments (can't even parse depth 0)."""
         children = _make_nested_comments(5)
         comments = self.handlers._parse_reddit_comments(children, max_depth=0)
         
+        # max_depth=0 means depth + 1 < 0 is always false for replies,
+        # but top-level comments at depth=0 are always parsed
+        # Actually, top-level comments are parsed regardless, just no replies
+        # Let's verify:
         assert len(comments) == 1
-        assert comments[0].replies == []
+        assert comments[0].depth == 0
 
     def test_deeply_nested_does_not_overflow(self):
         """A comment tree deeper than Python's recursion limit should not crash."""
-        # Build a tree 50 levels deep — would overflow without the cap
         children = _make_nested_comments(50)
         comments = self.handlers._parse_reddit_comments(children, max_depth=10)
         
-        # Should parse 10 levels and stop
-        current = comments[0]
-        parsed_depth = 1
-        while current.replies:
-            current = current.replies[0]
-            parsed_depth += 1
-        
-        assert parsed_depth == 10
+        assert len(comments) == 10
+        for i, comment in enumerate(comments):
+            assert comment.depth == i
 
     def test_default_max_depth_is_10(self):
         """Default max_depth should be 10."""
         children = _make_nested_comments(15)
         comments = self.handlers._parse_reddit_comments(children)
         
-        current = comments[0]
-        parsed_depth = 1
-        while current.replies:
-            current = current.replies[0]
-            parsed_depth += 1
-        
-        assert parsed_depth == 10
+        assert len(comments) == 10
+        assert comments[-1].depth == 9
 
     def test_non_comment_kinds_skipped(self):
         """Non-t1 kinds (like 'more') should be skipped."""
@@ -110,28 +98,78 @@ class TestCommentRecursionDepth:
         assert len(comments) == 1
         assert comments[0].id == "c1"
 
-    def test_multiple_top_level_with_depth(self):
-        """Multiple top-level comments each respect max_depth independently."""
+    def test_flat_output_has_no_nested_replies(self):
+        """RedditComment model should not have a replies field."""
+        children = _make_nested_comments(3)
+        comments = self.handlers._parse_reddit_comments(children, max_depth=10)
+        
+        # Verify comments are flat - no 'replies' attribute
+        for c in comments:
+            assert not hasattr(c, 'replies')
+            assert hasattr(c, 'depth')
+            assert hasattr(c, 'parent_id')
+
+    def test_parent_ids_preserved(self):
+        """Parent IDs should be preserved for tree reconstruction."""
+        children = [
+            {
+                "kind": "t1",
+                "data": {
+                    "id": "top1", "author": "u1", "body": "top", "parent_id": "t3_post123",
+                    "created_utc": 0,
+                    "replies": {"data": {"children": [
+                        {
+                            "kind": "t1",
+                            "data": {
+                                "id": "reply1", "author": "u2", "body": "reply", "parent_id": "t1_top1",
+                                "created_utc": 0, "replies": ""
+                            }
+                        }
+                    ]}}
+                }
+            }
+        ]
+        comments = self.handlers._parse_reddit_comments(children, max_depth=10)
+        
+        assert len(comments) == 2
+        assert comments[0].parent_id == "t3_post123"
+        assert comments[1].parent_id == "t1_top1"
+
+    def test_multiple_top_level_comments(self):
+        """Multiple top-level comments with replies should all flatten correctly."""
         children = [
             {
                 "kind": "t1",
                 "data": {
                     "id": "a", "author": "u1", "body": "first", "parent_id": "t3_p", "created_utc": 0,
-                    "replies": {"data": {"children": _make_nested_comments(5)}}
+                    "replies": {"data": {"children": _make_nested_comments(3)}}
                 }
             },
             {
                 "kind": "t1",
                 "data": {
                     "id": "b", "author": "u2", "body": "second", "parent_id": "t3_p", "created_utc": 0,
-                    "replies": {"data": {"children": _make_nested_comments(5)}}
+                    "replies": {"data": {"children": _make_nested_comments(2)}}
                 }
             },
         ]
-        comments = self.handlers._parse_reddit_comments(children, max_depth=2)
+        comments = self.handlers._parse_reddit_comments(children, max_depth=10)
         
-        assert len(comments) == 2
+        # a (depth 0) + 3 nested + b (depth 0) + 2 nested = 7
+        assert len(comments) == 7
+        assert comments[0].id == "a"
+        assert comments[0].depth == 0
+        # After a's replies...
+        assert comments[4].id == "b"
+        assert comments[4].depth == 0
+
+    def test_serialization_no_recursion(self):
+        """Serializing flat comments should never cause recursion."""
+        children = _make_nested_comments(20)
+        comments = self.handlers._parse_reddit_comments(children, max_depth=10)
+        
+        # This should never recurse - it's a flat list
         for c in comments:
-            # Each top-level has 1 reply, and that reply's replies are capped
-            assert len(c.replies) == 1
-            assert len(c.replies[0].replies) == 0
+            d = c.model_dump()
+            assert "depth" in d
+            assert "replies" not in d

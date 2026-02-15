@@ -189,12 +189,15 @@ class SearchHandlers:
         )
     
     def _parse_reddit_comments(self, children: List[Dict], depth: int = 0, max_depth: int = 10) -> List[RedditComment]:
-        """Recursively parse Reddit comments.
+        """Parse Reddit comments into a flat list with depth tracking.
+        
+        Comments are returned as a flat list ordered by tree traversal.
+        Use parent_id and depth to reconstruct the tree structure.
         
         Args:
             children: List of Reddit comment objects
             depth: Current nesting depth (internal tracker)
-            max_depth: Maximum reply nesting depth to prevent recursion overflow (default 10)
+            max_depth: Maximum reply nesting depth to parse (default 10)
         """
         comments = []
         for child in children:
@@ -202,20 +205,7 @@ class SearchHandlers:
                 continue
             
             comment_data = child.get("data", {})
-            
-            # Parse parent_id and determine parent_type
             parent_id = comment_data.get("parent_id", "")
-            parent_type = "post" if parent_id.startswith("t3_") else "comment"
-            
-            # Parse replies (stop recursing beyond max_depth)
-            replies_data = comment_data.get("replies")
-            replies = []
-            if depth + 1 < max_depth and isinstance(replies_data, dict) and replies_data.get("data", {}).get("children"):
-                replies = self._parse_reddit_comments(
-                    replies_data["data"]["children"],
-                    depth + 1,
-                    max_depth
-                )
             
             comment = RedditComment(
                 id=comment_data.get("id", ""),
@@ -223,9 +213,19 @@ class SearchHandlers:
                 body=comment_data.get("body", ""),
                 parent_id=parent_id,
                 created_utc=comment_data.get("created_utc", 0),
-                replies=replies
+                depth=depth
             )
             comments.append(comment)
+            
+            # Flatten nested replies into the same list
+            replies_data = comment_data.get("replies")
+            if depth + 1 < max_depth and isinstance(replies_data, dict) and replies_data.get("data", {}).get("children"):
+                replies = self._parse_reddit_comments(
+                    replies_data["data"]["children"],
+                    depth + 1,
+                    max_depth
+                )
+                comments.extend(replies)
         
         return comments
     

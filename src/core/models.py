@@ -115,13 +115,18 @@ class RedditPostSummary(BaseModel):
 
 
 class RedditComment(BaseModel):
-    """A Reddit comment with metadata."""
+    """A Reddit comment with metadata.
+    
+    Comments are returned as a flat list. Use parent_id to reconstruct
+    the tree structure: parent_id starting with 't3_' is a top-level
+    reply to the post, 't1_' is a reply to another comment.
+    """
     id: str
     author: str
     body: str
     parent_id: str  # e.g., "t3_abc123" for post, "t1_def456" for comment
     created_utc: float
-    replies: List["RedditComment"] = []  # Nested replies
+    depth: int = 0  # Nesting depth (0 = top-level reply to post)
 
 
 class RedditPostDetail(BaseModel):
