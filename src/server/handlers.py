@@ -188,8 +188,14 @@ class SearchHandlers:
             link_flair_text=post_data.get("link_flair_text")
         )
     
-    def _parse_reddit_comments(self, children: List[Dict], depth: int = 0) -> List[RedditComment]:
-        """Recursively parse Reddit comments."""
+    def _parse_reddit_comments(self, children: List[Dict], depth: int = 0, max_depth: int = 10) -> List[RedditComment]:
+        """Recursively parse Reddit comments.
+        
+        Args:
+            children: List of Reddit comment objects
+            depth: Current nesting depth (internal tracker)
+            max_depth: Maximum reply nesting depth to prevent recursion overflow (default 10)
+        """
         comments = []
         for child in children:
             if child.get("kind") != "t1":  # Skip non-comments
@@ -201,13 +207,14 @@ class SearchHandlers:
             parent_id = comment_data.get("parent_id", "")
             parent_type = "post" if parent_id.startswith("t3_") else "comment"
             
-            # Parse replies
+            # Parse replies (stop recursing beyond max_depth)
             replies_data = comment_data.get("replies")
             replies = []
-            if isinstance(replies_data, dict) and replies_data.get("data", {}).get("children"):
+            if depth + 1 < max_depth and isinstance(replies_data, dict) and replies_data.get("data", {}).get("children"):
                 replies = self._parse_reddit_comments(
                     replies_data["data"]["children"],
-                    depth + 1
+                    depth + 1,
+                    max_depth
                 )
             
             comment = RedditComment(
@@ -343,7 +350,9 @@ class SearchHandlers:
             
             # Parse comments
             comments_listing = response[1].get("data", {}).get("children", [])
-            comments = self._parse_reddit_comments(comments_listing)
+            # Cap parse depth to prevent recursion overflow in serialization
+            parse_depth = depth if depth is not None else 10
+            comments = self._parse_reddit_comments(comments_listing, max_depth=parse_depth)
             
             # Extract media URLs
             media_urls = self._extract_media_urls(post_data)
