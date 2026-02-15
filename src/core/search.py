@@ -34,6 +34,8 @@ class SearxngClient:
         query: str, 
         engines: Union[str, List[str]] = None, 
         categories: Union[str, List[str]] = None, 
+        time_range: Optional[str] = None,
+        language: Optional[str] = None,
         max_results: int = None
     ) -> RawSearxngResponse:
         """
@@ -43,6 +45,8 @@ class SearxngClient:
             query: The search query
             engines: Search engines to use
             categories: Search categories to use
+            time_range: Time filter ('day', 'month', 'year')
+            language: Language code filter (e.g., 'en', 'de', 'fr')
             max_results: Maximum number of results to return
             
         Returns:
@@ -67,6 +71,12 @@ class SearxngClient:
             else:
                 params['categories'] = categories
         
+        if time_range:
+            params['time_range'] = time_range
+        
+        if language:
+            params['language'] = language
+        
         try:
             response = requests.get(
                 url, 
@@ -90,7 +100,10 @@ class SearxngClient:
     def search_general(
         self, 
         query: str, 
-        max_results: int = None
+        max_results: int = None,
+        categories: Optional[str] = None,
+        time_range: Optional[str] = None,
+        language: Optional[str] = None
     ) -> List[GeneralSearchResult]:
         """
         Perform a general web search and return cleaned results.
@@ -98,6 +111,9 @@ class SearxngClient:
         Args:
             query: The search query
             max_results: Maximum number of results to return
+            categories: Search categories (e.g., 'general', 'news', 'science')
+            time_range: Time filter ('day', 'month', 'year')
+            language: Language code filter (e.g., 'en', 'de')
             
         Returns:
             List of GeneralSearchResult objects
@@ -107,7 +123,13 @@ class SearxngClient:
         elif max_results > SearchConfig.MAX_GENERAL_RESULTS:
             max_results = SearchConfig.MAX_GENERAL_RESULTS
         
-        raw_response = self._search_raw(query, max_results=max_results)
+        raw_response = self._search_raw(
+            query, 
+            categories=categories,
+            time_range=time_range,
+            language=language,
+            max_results=max_results
+        )
         
         results = []
         for result in raw_response.results:

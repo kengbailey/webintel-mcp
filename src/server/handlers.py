@@ -31,13 +31,23 @@ class SearchHandlers:
         self.youtube_fetcher = YouTubeContentFetcher()
         self.reddit_fetcher = RedditFetcher()
     
-    def search(self, query: str, max_results: int = 10) -> List[SearchResultOutput]:
+    def search(
+        self, 
+        query: str, 
+        max_results: int = 10,
+        categories: str = None,
+        time_range: str = None,
+        language: str = None
+    ) -> List[SearchResultOutput]:
         """
         Perform a general web search using SearxNG.
         
         Args:
             query: The search query to execute
             max_results: Maximum number of results to return (default: 10, max: 25)
+            categories: Search categories (e.g., 'general', 'news', 'science', 'it', 'music')
+            time_range: Time filter ('day', 'month', 'year')
+            language: Language code filter (e.g., 'en', 'de', 'fr')
             
         Returns:
             List of search results with title, url, content, score
@@ -52,9 +62,28 @@ class SearchHandlers:
         elif max_results < 1:
             max_results = 1
         
+        # Validate time_range
+        valid_time_ranges = ['day', 'month', 'year']
+        if time_range and time_range not in valid_time_ranges:
+            raise ToolError(f"Invalid time_range: '{time_range}'. Must be one of: {valid_time_ranges}")
+        
+        # Validate categories
+        valid_categories = ['general', 'news', 'science', 'it', 'music', 'images', 'videos', 'files', 'social_media', 'map']
+        if categories:
+            for cat in categories.split(','):
+                cat = cat.strip()
+                if cat not in valid_categories:
+                    raise ToolError(f"Invalid category: '{cat}'. Must be one of: {valid_categories}")
+        
         try:
             # Call the search function
-            results = self.client.search_general(query, max_results=max_results)
+            results = self.client.search_general(
+                query, 
+                max_results=max_results,
+                categories=categories,
+                time_range=time_range,
+                language=language
+            )
             
             # Convert to output models
             return [
