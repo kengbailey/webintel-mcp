@@ -13,6 +13,9 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 - **`search`** — Web search via SearxNG
   - `query` (required) — search terms
   - `max_results` (optional, default: 10, max: 25)
+  - `categories` (optional) — comma-separated: `general`, `news`, `science`, `it`, `music`
+  - `time_range` (optional) — `day`, `month`, or `year`
+  - `language` (optional) — ISO language code (e.g., `en`, `de`, `fr`)
   - Returns: title, url, content snippet, score
 
 - **`search_videos`** — YouTube video search
@@ -98,6 +101,10 @@ Add to `.cursor/mcp.json` in your project:
 
 ```bash
 mcporter call webintel-mcp.search query="latest news" max_results=5
+
+# Search with filters
+mcporter call webintel-mcp.search query="AI breakthroughs" categories="science" time_range="month"
+mcporter call webintel-mcp.search query="open source LLM" categories="news" time_range="day" language="en"
 mcporter call webintel-mcp.fetch_content url="https://example.com"
 mcporter call webintel-mcp.fetch_subreddit subreddit="python" sort="top" time_filter="week"
 ```

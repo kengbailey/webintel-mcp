@@ -6,7 +6,7 @@ Provides general web search capabilities via SearxNG
 import argparse
 import os
 import sys
-from typing import List, Annotated
+from typing import List, Annotated, Optional
 from pydantic import Field
 from fastmcp import FastMCP
 from .handlers import SearchHandlers
@@ -44,15 +44,26 @@ def search(
         description="Maximum number of results to return (default: 10, min: 1, max: 25)",
         ge=1,
         le=25
-    )] = 10
+    )] = 10,
+    categories: Annotated[Optional[str], Field(
+        description="Comma-separated search categories: general, news, science, it, music (default: general)"
+    )] = None,
+    time_range: Annotated[Optional[str], Field(
+        description="Time filter: 'day', 'month', or 'year' (default: no filter)"
+    )] = None,
+    language: Annotated[Optional[str], Field(
+        description="Language code for results (e.g., 'en', 'de', 'fr'). Default: all languages"
+    )] = None
 ) -> List[SearchResultOutput]:
     """
     Perform a general web search using SearxNG.
     
+    Supports filtering by category, time range, and language.
+    
     Returns:
         List of search results with title, url, content, score
     """
-    return handlers.search(query, max_results)
+    return handlers.search(query, max_results, categories, time_range, language)
 
 
 @mcp.tool(
