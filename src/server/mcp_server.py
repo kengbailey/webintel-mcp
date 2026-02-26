@@ -176,7 +176,7 @@ async def fetch_subreddit(
     sort: Annotated[str, Field(
         description="Sort order: hot, new, top, rising, or controversial (default: hot)"
     )] = "hot",
-    time_filter: Annotated[str, Field(
+    time_filter: Annotated[Optional[str], Field(
         description="Time filter for top/controversial: hour, day, week, month, year, or all (optional)"
     )] = None,
     limit: Annotated[int, Field(
@@ -184,7 +184,7 @@ async def fetch_subreddit(
         ge=1,
         le=100
     )] = 25,
-    after: Annotated[str, Field(
+    after: Annotated[Optional[str], Field(
         description="Pagination cursor from previous response (optional)"
     )] = None
 ) -> SubredditPostsOutput:
@@ -235,7 +235,7 @@ async def fetch_subreddit_post(
         ge=1,
         le=500
     )] = 100,
-    depth: Annotated[int, Field(
+    depth: Annotated[Optional[int], Field(
         description="Maximum reply nesting depth (optional, min: 1)"
     )] = None
 ) -> RedditPostOutput:
