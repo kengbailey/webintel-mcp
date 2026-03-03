@@ -172,12 +172,18 @@ class WebContentFetcher:
                 
         except httpx.TimeoutException:
             # Fallback to Jina Reader API for any timeout
-            content, was_truncated = await self._fetch_via_jina(url)
-            return self._apply_offset_and_chunk(content, offset)
+            try:
+                content, was_truncated = await self._fetch_via_jina(url)
+                return self._apply_offset_and_chunk(content, offset)
+            except SearchException:
+                raise SearchException(f"Failed to fetch {url}")
 
         except httpx.HTTPError as e:
             # Fallback to Jina Reader API for HTTP errors
-            content, was_truncated = await self._fetch_via_jina(url)
-            return self._apply_offset_and_chunk(content, offset)
+            try:
+                content, was_truncated = await self._fetch_via_jina(url)
+                return self._apply_offset_and_chunk(content, offset)
+            except SearchException:
+                raise SearchException(f"Failed to fetch {url}")
         except Exception as e:
             raise SearchException(f"Unexpected error while fetching content: {str(e)}")

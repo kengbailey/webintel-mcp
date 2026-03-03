@@ -4,6 +4,8 @@ Tests for web content fetching functionality
 
 import pytest
 import asyncio
+from unittest.mock import AsyncMock, patch
+import httpx
 from src.core.web_fetcher import WebContentFetcher
 from src.core.config import SearchException
 
@@ -150,3 +152,37 @@ class TestWebContentFetcher:
         
         # Content length should match total length
         assert len(content) == total_length
+
+    @pytest.mark.asyncio
+    async def test_timeout_and_jina_failure_gives_simple_error(self):
+        """When direct fetch times out and Jina also fails, error message is simplified."""
+        url = "https://example.com/some-page"
+
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as mock_client_cls:
+            # Make direct fetch raise TimeoutException
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.get.side_effect = httpx.TimeoutException("timed out")
+            mock_client_cls.return_value = mock_client
+
+            # Make Jina fallback also fail
+            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")):
+                with pytest.raises(SearchException, match=f"Failed to fetch {url}"):
+                    await self.fetcher.fetch_and_parse(url)
+
+    @pytest.mark.asyncio
+    async def test_http_error_and_jina_failure_gives_simple_error(self):
+        """When direct fetch returns HTTP error and Jina also fails, error message is simplified."""
+        url = "https://example.com/some-page"
+
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as mock_client_cls:
+            # Make direct fetch raise HTTPError
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.get.side_effect = httpx.HTTPError("503 Service Unavailable")
+            mock_client_cls.return_value = mock_client
+
+            # Make Jina fallback also fail
+            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")):
+                with pytest.raises(SearchException, match=f"Failed to fetch {url}"):
+                    await self.fetcher.fetch_and_parse(url)
