@@ -28,6 +28,7 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 - **`fetch_content`** — Fetch and extract readable content from any URL
   - `url` (required) — URL to fetch
   - `offset` (optional, default: 0) — pagination offset
+  - Automatic fallback chain: static fetch → JS rendering (if empty) → Jina Reader (if still empty/error)
   - Content is returned in 30K character chunks. Use `next_offset` from the response to paginate.
 
 - **`fetch_youtube_content`** — Download and transcribe YouTube video audio
@@ -198,6 +199,17 @@ python -m src.server.mcp_server
 # Run tests
 python -m pytest tests/ -v --ignore=tests/test_searxng_integration.py
 ```
+
+### JS Rendering (Auto Fallback)
+
+`fetch_content` automatically falls back to headless browser rendering when static fetch returns empty content. This requires **Playwright** with Chromium:
+
+```bash
+pip install playwright
+playwright install chromium
+```
+
+The Docker image includes Playwright and Chromium. For local development, install them separately.
 
 ### YouTube Transcription Requirements
 

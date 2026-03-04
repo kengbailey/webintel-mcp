@@ -7,7 +7,8 @@ WORKDIR /app
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+    PYTHONPATH=/app \
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -33,6 +34,9 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 # Install yt-dlp nightly (--pre) for latest YouTube fixes
 RUN pip install --no-cache-dir -U --pre "yt-dlp[default]"
+
+# Install Playwright browsers for JS rendering support
+RUN playwright install --with-deps chromium
 
 # Copy the entire src directory and its structure
 COPY src/ ./src/

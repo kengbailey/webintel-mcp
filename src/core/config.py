@@ -27,6 +27,7 @@ class SearchConfig:
     # Web fetching configuration
     MAX_CONTENT_LENGTH = 30000
     FETCH_TIMEOUT = 30.0
+    RENDER_TIMEOUT = 30.0  # Timeout for JS rendering with Playwright (seconds)
     USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
     
     # YouTube STT configuration
