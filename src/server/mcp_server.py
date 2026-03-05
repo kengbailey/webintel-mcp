@@ -118,10 +118,10 @@ async def fetch_content(
 ) -> FetchContentOutput:
     """
     Fetch and parse content from a webpage URL with pagination support.
-    
+
     Content is retrieved in chunks of 30,000 characters. If content is truncated,
     use the returned 'next_offset' value in a subsequent call to retrieve the next chunk.
-    
+
     Returns:
         FetchContentOutput with parsed content and pagination metadata
     """

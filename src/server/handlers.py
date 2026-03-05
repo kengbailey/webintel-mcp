@@ -144,18 +144,18 @@ class SearchHandlers:
     async def fetch_content(self, url: str, offset: int = 0) -> FetchContentOutput:
         """
         Fetch and parse content from a webpage URL with pagination support.
-        
+
         Args:
             url: The webpage URL to fetch content from
             offset: Starting position for content retrieval (default: 0)
-            
+
         Returns:
             FetchContentOutput containing the parsed content and pagination metadata
         """
         # Validate URL
         if not url or not url.strip():
             raise ToolError("URL cannot be empty")
-        
+
         try:
             content, is_truncated, next_offset, total_length = await self.fetcher.fetch_and_parse(url, offset)
             return FetchContentOutput(
