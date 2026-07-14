@@ -1,21 +1,116 @@
-"""
-Reddit content fetching functionality using old.reddit.com API
-"""
+"""Reddit content fetching using Reddit's OAuth Data API."""
+
+import asyncio
+import time
+from typing import Optional
 
 import httpx
-from typing import Optional
+
 from .config import SearchConfig, SearchException
 
 
 class RedditFetcher:
-    """Handles fetching Reddit content via old.reddit.com JSON API."""
+    """Handles fetching Reddit content via the OAuth Data API."""
     
-    BASE_URL = "https://old.reddit.com"
+    BASE_URL = "https://oauth.reddit.com"
+    TOKEN_URL = "https://www.reddit.com/api/v1/access_token"
+    TOKEN_EXPIRY_MARGIN = 60
     
     def __init__(self):
         self.headers = {
-            "User-Agent": SearchConfig.USER_AGENT
+            "User-Agent": SearchConfig.REDDIT_USER_AGENT
         }
+        self._access_token: Optional[str] = None
+        self._token_expires_at = 0.0
+        self._token_lock = asyncio.Lock()
+
+    def _validate_credentials(self) -> None:
+        if not SearchConfig.REDDIT_CLIENT_ID or not SearchConfig.REDDIT_CLIENT_SECRET:
+            raise SearchException(
+                "Reddit OAuth is not configured. Set REDDIT_CLIENT_ID and "
+                "REDDIT_CLIENT_SECRET."
+            )
+
+    async def _get_access_token(self, force_refresh: bool = False) -> str:
+        """Return a cached application-only OAuth token."""
+        self._validate_credentials()
+        now = time.monotonic()
+        if not force_refresh and self._access_token and now < self._token_expires_at:
+            return self._access_token
+
+        async with self._token_lock:
+            now = time.monotonic()
+            if not force_refresh and self._access_token and now < self._token_expires_at:
+                return self._access_token
+
+            try:
+                async with httpx.AsyncClient(proxy=SearchConfig.REDDIT_PROXY_URL) as client:
+                    response = await client.post(
+                        self.TOKEN_URL,
+                        auth=(
+                            SearchConfig.REDDIT_CLIENT_ID,
+                            SearchConfig.REDDIT_CLIENT_SECRET,
+                        ),
+                        headers=self.headers,
+                        data={"grant_type": "client_credentials"},
+                        timeout=SearchConfig.FETCH_TIMEOUT,
+                    )
+                    response.raise_for_status()
+                    payload = response.json()
+            except httpx.HTTPStatusError as e:
+                if e.response.status_code == 401:
+                    raise SearchException(
+                        "Reddit rejected the OAuth client ID or client secret"
+                    )
+                raise SearchException(
+                    f"Reddit OAuth token request failed with HTTP {e.response.status_code}"
+                )
+            except httpx.TimeoutException:
+                raise SearchException("Reddit OAuth token request timed out")
+            except httpx.HTTPError as e:
+                raise SearchException(f"Reddit OAuth token request failed: {e}")
+
+            token = payload.get("access_token")
+            if not token:
+                raise SearchException("Reddit OAuth response did not contain an access token")
+
+            expires_in = max(int(payload.get("expires_in", 3600)), 0)
+            self._access_token = token
+            self._token_expires_at = time.monotonic() + max(
+                expires_in - self.TOKEN_EXPIRY_MARGIN, 0
+            )
+            return token
+
+    async def _get(self, url: str, params: dict) -> httpx.Response:
+        """Make an authenticated request, refreshing once if the token expired."""
+        for attempt in range(2):
+            token = await self._get_access_token(force_refresh=attempt == 1)
+            headers = {**self.headers, "Authorization": f"bearer {token}"}
+            async with httpx.AsyncClient(proxy=SearchConfig.REDDIT_PROXY_URL) as client:
+                response = await client.get(
+                    url,
+                    headers=headers,
+                    params=params,
+                    follow_redirects=True,
+                    timeout=SearchConfig.FETCH_TIMEOUT,
+                )
+            if response.status_code != 401 or attempt == 1:
+                response.raise_for_status()
+                return response
+
+            self._access_token = None
+            self._token_expires_at = 0.0
+
+        raise SearchException("Reddit authentication failed")
+
+    @staticmethod
+    def _rate_limit_message(response: httpx.Response) -> str:
+        retry_after = response.headers.get("retry-after")
+        reset = response.headers.get("x-ratelimit-reset")
+        wait = retry_after or reset
+        if wait:
+            return f"Reddit rate limit exceeded; retry in {wait} seconds"
+        return "Reddit rate limit exceeded; retry later"
     
     async def fetch_subreddit_posts(
         self,
@@ -64,26 +159,25 @@ class RedditFetcher:
             params["after"] = after
         
         try:
-            async with httpx.AsyncClient(proxy=SearchConfig.PROXY_URL) as client:
-                response = await client.get(
-                    url,
-                    headers=self.headers,
-                    params=params,
-                    follow_redirects=True,
-                    timeout=SearchConfig.FETCH_TIMEOUT,
-                )
-                response.raise_for_status()
-                return response.json()
+            response = await self._get(url, params)
+            return response.json()
                 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise SearchException(f"Subreddit not found: r/{subreddit}")
             elif e.response.status_code == 403:
-                raise SearchException(f"Access forbidden to r/{subreddit} (private or banned)")
+                raise SearchException(
+                    f"Reddit denied access to r/{subreddit}; it may be private, banned, "
+                    "or unavailable to this OAuth application"
+                )
+            elif e.response.status_code == 429:
+                raise SearchException(self._rate_limit_message(e.response))
             else:
                 raise SearchException(f"HTTP error {e.response.status_code}: {str(e)}")
         except httpx.TimeoutException:
             raise SearchException("Request timed out while fetching subreddit posts")
+        except SearchException:
+            raise
         except Exception as e:
             raise SearchException(f"Failed to fetch subreddit posts: {str(e)}")
     
@@ -146,25 +240,24 @@ class RedditFetcher:
             params["context"] = context
         
         try:
-            async with httpx.AsyncClient(proxy=SearchConfig.PROXY_URL) as client:
-                response = await client.get(
-                    url,
-                    headers=self.headers,
-                    params=params,
-                    follow_redirects=True,
-                    timeout=SearchConfig.FETCH_TIMEOUT,
-                )
-                response.raise_for_status()
-                return response.json()
+            response = await self._get(url, params)
+            return response.json()
                 
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
                 raise SearchException(f"Post not found: {post_id} in r/{subreddit}")
             elif e.response.status_code == 403:
-                raise SearchException(f"Access forbidden to post or subreddit")
+                raise SearchException(
+                    "Reddit denied access to the post; it may be private, banned, "
+                    "or unavailable to this OAuth application"
+                )
+            elif e.response.status_code == 429:
+                raise SearchException(self._rate_limit_message(e.response))
             else:
                 raise SearchException(f"HTTP error {e.response.status_code}: {str(e)}")
         except httpx.TimeoutException:
             raise SearchException("Request timed out while fetching post")
+        except SearchException:
+            raise
         except Exception as e:
             raise SearchException(f"Failed to fetch post: {str(e)}")

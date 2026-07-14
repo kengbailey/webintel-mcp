@@ -71,6 +71,10 @@ services:
       - STT_MODEL
       - STT_API_KEY
       - PROXY_URL
+      - REDDIT_CLIENT_ID
+      - REDDIT_CLIENT_SECRET
+      - REDDIT_USER_AGENT
+      - REDDIT_PROXY_URL
       # Transport options: http (default) or sse
       - MCP_TRANSPORT=${MCP_TRANSPORT:-http}
       # Optional: override port (default: 3090)

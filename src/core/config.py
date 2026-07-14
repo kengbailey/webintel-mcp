@@ -39,6 +39,16 @@ class SearchConfig:
     # Convert empty string to None so httpx/yt-dlp use direct connection
     PROXY_URL = os.getenv('PROXY_URL') or None
 
+    # Reddit OAuth configuration. Reddit has separate proxy control because
+    # commercial VPN exit nodes are frequently blocked by Reddit.
+    REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')
+    REDDIT_CLIENT_SECRET = os.getenv('REDDIT_CLIENT_SECRET')
+    REDDIT_USER_AGENT = os.getenv(
+        'REDDIT_USER_AGENT',
+        'python:webintel-mcp:v1.0.0'
+    )
+    REDDIT_PROXY_URL = os.getenv('REDDIT_PROXY_URL') or None
+
 
 class SearchException(Exception):
     """Custom exception for search-related errors."""
