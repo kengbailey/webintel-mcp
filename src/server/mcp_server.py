@@ -189,7 +189,7 @@ async def fetch_subreddit(
     )] = None
 ) -> SubredditPostsOutput:
     """
-    Fetch posts from a subreddit using old.reddit.com API.
+    Fetch posts from a subreddit using Reddit's OAuth Data API.
     
     Retrieves a list of posts with title, author, score, comments count,
     and other metadata. Supports pagination via the 'after' cursor.
@@ -240,7 +240,7 @@ async def fetch_subreddit_post(
     )] = None
 ) -> RedditPostOutput:
     """
-    Fetch a Reddit post with its comments using old.reddit.com API.
+    Fetch a Reddit post with its comments using Reddit's OAuth Data API.
     
     Retrieves the post content including title, body, media URLs, and all
     comments with nested replies maintaining parent-child relationships.

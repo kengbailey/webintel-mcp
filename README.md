@@ -171,6 +171,10 @@ cp .env.example .env
 | `STT_MODEL` | — | STT model name |
 | `STT_API_KEY` | — | STT API key |
 | `PROXY_URL` | — | HTTP proxy for outbound requests (e.g. `http://gluetun:8888`) |
+| `REDDIT_CLIENT_ID` | — | Client ID for a Reddit personal-use script app (required for Reddit tools) |
+| `REDDIT_CLIENT_SECRET` | — | Client secret for the Reddit app (required for Reddit tools) |
+| `REDDIT_USER_AGENT` | `python:webintel-mcp:v1.0.0` | Identifying Reddit User-Agent; include your Reddit username |
+| `REDDIT_PROXY_URL` | — | Optional Reddit-only proxy; empty means direct access even when `PROXY_URL` is set |
 | `VPN_SERVICE_PROVIDER` | — | Gluetun VPN provider (use `custom` for .ovpn files) |
 | `VPN_TYPE` | — | VPN type (`openvpn` or `wireguard`) |
 | `OPENVPN_USER` | — | VPN username |
