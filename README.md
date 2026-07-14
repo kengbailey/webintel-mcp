@@ -12,7 +12,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
 - **`search`** — Web search via SearxNG
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -24,7 +25,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   [
@@ -37,9 +41,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ]
   ```
 
+  </details>
+
 - **`search_videos`** — YouTube video search
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -48,7 +55,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   [
@@ -62,11 +72,14 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ]
   ```
 
+  </details>
+
 ### Content Fetching
 
 - **`fetch_content`** — Fetch and extract readable content from any URL
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -75,7 +88,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -89,9 +105,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`fetch_youtube_content`** — Download and transcribe YouTube video audio
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -99,7 +118,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -110,11 +132,14 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 ### Reddit
 
 - **`fetch_subreddit`** — Browse subreddit posts
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -126,7 +151,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -155,9 +183,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`fetch_subreddit_post`** — Fetch a post with full comment tree
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -169,7 +200,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -202,9 +236,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`search_reddit`** — Search public Reddit posts globally or within one subreddit
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -217,7 +254,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -247,9 +287,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -260,7 +303,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -293,9 +339,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`fetch_more_comments`** — Expand omitted comment branches
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -305,7 +354,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -325,9 +377,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
+  </details>
+
 - **`fetch_subreddit_info`** — Fetch public community metadata
 
-  Input:
+  <details>
+  <summary>Input</summary>
 
   ```json
   {
@@ -335,7 +390,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   }
   ```
 
-  Output:
+  </details>
+
+  <details>
+  <summary>Output</summary>
 
   ```json
   {
@@ -354,6 +412,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
     "success": true
   }
   ```
+
+  </details>
 
 ## Quick Start
 
