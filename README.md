@@ -90,6 +90,65 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   </tr>
   </table>
 
+- **`search_reddit`** — Search public Reddit posts globally or within one subreddit
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "query": "asyncio patterns",
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "year",
+    "limit": 10,
+    "after": null
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "query": "asyncio patterns",
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "year",
+    "posts": [
+      {
+        "id": "1abcde",
+        "title": "Structured concurrency patterns for asyncio",
+        "author": "example_user",
+        "subreddit": "python",
+        "score": 321,
+        "num_comments": 42,
+        "created_utc": 1784044800.0,
+        "url": "https://www.reddit.com/r/python/comments/1abcde/example/",
+        "permalink": "/r/python/comments/1abcde/example/",
+        "is_self": true,
+        "selftext": "A discussion of task groups and cancellation.",
+        "thumbnail": null,
+        "link_flair_text": "Discussion"
+      }
+    ],
+    "after_cursor": null,
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
+
 ### Content Fetching
 
 - **`fetch_content`** — Fetch and extract readable content from any URL
@@ -165,8 +224,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   </td>
   </tr>
   </table>
-
-### Reddit
 
 - **`fetch_subreddit`** — Browse subreddit posts
 
@@ -276,65 +333,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
       "permalink": "/r/python/comments/1abcde/example/",
       "more_comment_ids": ["ghi789", "jkl012"]
     },
-    "success": true
-  }
-  ```
-
-  </details>
-
-  </td>
-  </tr>
-  </table>
-
-- **`search_reddit`** — Search public Reddit posts globally or within one subreddit
-
-  <table>
-  <tr>
-  <td>
-  <details>
-  <summary>Input</summary>
-
-  ```json
-  {
-    "query": "asyncio patterns",
-    "subreddit": "python",
-    "sort": "top",
-    "time_filter": "year",
-    "limit": 10,
-    "after": null
-  }
-  ```
-
-  </details>
-  </td>
-  <td>
-  <details>
-  <summary>Output</summary>
-
-  ```json
-  {
-    "query": "asyncio patterns",
-    "subreddit": "python",
-    "sort": "top",
-    "time_filter": "year",
-    "posts": [
-      {
-        "id": "1abcde",
-        "title": "Structured concurrency patterns for asyncio",
-        "author": "example_user",
-        "subreddit": "python",
-        "score": 321,
-        "num_comments": 42,
-        "created_utc": 1784044800.0,
-        "url": "https://www.reddit.com/r/python/comments/1abcde/example/",
-        "permalink": "/r/python/comments/1abcde/example/",
-        "is_self": true,
-        "selftext": "A discussion of task groups and cancellation.",
-        "thumbnail": null,
-        "link_flair_text": "Discussion"
-      }
-    ],
-    "after_cursor": null,
     "success": true
   }
   ```
