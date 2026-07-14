@@ -3,7 +3,7 @@ Tests for server functionality
 """
 
 import pytest
-from unittest.mock import patch, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 from src.server.handlers import SearchHandlers
 from src.core.config import SearchException
@@ -90,3 +90,37 @@ class TestSearchHandlers:
         
         # Verify error message
         assert 'Unexpected error' in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_fetch_reddit_post_resolves_reference_and_fetches_by_id(self):
+        expected = Mock()
+        self.handlers.reddit_fetcher.resolve_post_reference = AsyncMock(
+            return_value=("1abcde", "python")
+        )
+        self.handlers._fetch_reddit_post_by_id = AsyncMock(return_value=expected)
+
+        result = await self.handlers.fetch_reddit_post(
+            reference="https://www.reddit.com/r/python/comments/1abcde/example/",
+            sort="top",
+            limit=50,
+            depth=3,
+        )
+
+        assert result is expected
+        self.handlers._fetch_reddit_post_by_id.assert_awaited_once_with(
+            subreddit="python",
+            post_id="1abcde",
+            sort="top",
+            limit=50,
+            depth=3,
+        )
+
+
+@pytest.mark.asyncio
+async def test_reddit_post_is_exposed_as_one_tool():
+    from src.server.mcp_server import mcp
+
+    tool_names = {tool.name for tool in await mcp.list_tools()}
+
+    assert "fetch_reddit_post" in tool_names
+    assert "fetch_subreddit_post" not in tool_names

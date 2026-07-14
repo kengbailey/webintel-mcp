@@ -69,3 +69,113 @@ async def test_rate_limit_reports_reset_time():
     with patch("src.core.reddit_fetcher.httpx.AsyncClient", return_value=client):
         with pytest.raises(SearchException, match="42 seconds"):
             await fetcher.fetch_subreddit_posts("python")
+
+
+@pytest.mark.parametrize(
+    ("reference", "post_id", "subreddit"),
+    [
+        ("1abcde", "1abcde", None),
+        ("t3_1abcde", "1abcde", None),
+        ("https://redd.it/1abcde", "1abcde", None),
+        (
+            "https://www.reddit.com/r/python/comments/1abcde/example_title/",
+            "1abcde",
+            "python",
+        ),
+        ("/r/python/comments/1abcde/example_title/", "1abcde", "python"),
+        ("https://www.reddit.com/comments/a/old_post/", "a", None),
+    ],
+)
+def test_parse_post_reference(reference, post_id, subreddit):
+    assert RedditFetcher.parse_post_reference(reference) == (post_id, subreddit)
+
+
+def test_parse_post_reference_rejects_non_reddit_url():
+    with pytest.raises(SearchException, match="Reddit post URL"):
+        RedditFetcher.parse_post_reference("https://example.com/comments/1abcde")
+
+
+@pytest.mark.asyncio
+async def test_resolve_post_reference_follows_reddit_share_redirect():
+    fetcher = RedditFetcher()
+    share_url = "https://www.reddit.com/r/python/s/share123"
+    redirect = response(
+        302,
+        headers={
+            "location": "https://www.reddit.com/r/python/comments/1abcde/example_title/"
+        },
+        request_url=share_url,
+    )
+    client = AsyncMock()
+    client.get.return_value = redirect
+    client.__aenter__.return_value = client
+    client.__aexit__.return_value = None
+
+    with patch("src.core.reddit_fetcher.httpx.AsyncClient", return_value=client):
+        result = await fetcher.resolve_post_reference(share_url)
+
+    assert result == ("1abcde", "python")
+    assert client.get.await_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.asyncio
+async def test_resolve_post_reference_rejects_external_share_redirect():
+    fetcher = RedditFetcher()
+    share_url = "https://www.reddit.com/r/python/s/share123"
+    redirect = response(
+        302,
+        headers={"location": "https://example.com/r/python/comments/1abcde/title/"},
+        request_url=share_url,
+    )
+    client = AsyncMock()
+    client.get.return_value = redirect
+    client.__aenter__.return_value = client
+    client.__aexit__.return_value = None
+
+    with patch("src.core.reddit_fetcher.httpx.AsyncClient", return_value=client):
+        with pytest.raises(SearchException, match="outside Reddit"):
+            await fetcher.resolve_post_reference(share_url)
+
+
+@pytest.mark.asyncio
+async def test_search_posts_scopes_to_subreddit():
+    fetcher = RedditFetcher()
+    fetcher._get = AsyncMock(return_value=response(200, {"kind": "Listing"}))
+
+    result = await fetcher.search_posts(
+        "asyncio",
+        subreddit="python",
+        sort="top",
+        time_filter="week",
+        limit=10,
+    )
+
+    assert result["kind"] == "Listing"
+    url, params = fetcher._get.await_args.args
+    assert url == "https://oauth.reddit.com/r/python/search.json"
+    assert params["restrict_sr"] == "on"
+    assert params["q"] == "asyncio"
+    assert params["t"] == "week"
+
+
+@pytest.mark.asyncio
+async def test_fetch_more_comments_builds_morechildren_request():
+    fetcher = RedditFetcher()
+    fetcher._get = AsyncMock(return_value=response(200, {"json": {"data": {"things": []}}}))
+
+    await fetcher.fetch_more_comments("t3_1abcde", ["t1_def456", "ghi789"])
+
+    url, params = fetcher._get.await_args.args
+    assert url == "https://oauth.reddit.com/api/morechildren"
+    assert params["link_id"] == "t3_1abcde"
+    assert params["children"] == "def456,ghi789"
+
+
+@pytest.mark.asyncio
+async def test_fetch_subreddit_info_uses_about_endpoint():
+    fetcher = RedditFetcher()
+    fetcher._get = AsyncMock(return_value=response(200, {"kind": "t5", "data": {}}))
+
+    await fetcher.fetch_subreddit_info("python")
+
+    assert fetcher._get.await_args.args[0] == "https://oauth.reddit.com/r/python/about.json"

@@ -11,48 +11,426 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 ### Search
 
 - **`search`** — Web search via SearxNG
-  - `query` (required) — search terms
-  - `max_results` (optional, default: 10, max: 25)
-  - `categories` (optional) — comma-separated: `general`, `news`, `science`, `it`, `music`
-  - `time_range` (optional) — `day`, `month`, or `year`
-  - `language` (optional) — ISO language code (e.g., `en`, `de`, `fr`)
-  - Returns: title, url, content snippet, score
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "query": "Python 3.14 release highlights",
+    "max_results": 2,
+    "categories": "it,news",
+    "time_range": "month",
+    "language": "en"
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  [
+    {
+      "title": "What's New In Python 3.14",
+      "url": "https://docs.python.org/3.14/whatsnew/3.14.html",
+      "content": "Python 3.14 adds new syntax, runtime improvements, and tooling updates.",
+      "score": 1.0
+    }
+  ]
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
 
 - **`search_videos`** — YouTube video search
-  - `query` (required) — video search terms
-  - `max_results` (optional, default: 10, max: 20)
-  - Returns: url, title, author, content summary, length
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "query": "asyncio tutorial",
+    "max_results": 2
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  [
+    {
+      "url": "https://www.youtube.com/watch?v=example123",
+      "title": "Python Asyncio Explained",
+      "author": "Example Developer",
+      "content": "A practical introduction to async and await in Python.",
+      "length": "12:34"
+    }
+  ]
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
+
+- **`search_reddit`** — Search public Reddit posts globally or within one subreddit
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "query": "asyncio patterns",
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "year",
+    "limit": 10,
+    "after": null
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "query": "asyncio patterns",
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "year",
+    "posts": [
+      {
+        "id": "1abcde",
+        "title": "Structured concurrency patterns for asyncio",
+        "author": "example_user",
+        "subreddit": "python",
+        "score": 321,
+        "num_comments": 42,
+        "created_utc": 1784044800.0,
+        "url": "https://www.reddit.com/r/python/comments/1abcde/example/",
+        "permalink": "/r/python/comments/1abcde/example/",
+        "is_self": true,
+        "selftext": "A discussion of task groups and cancellation.",
+        "thumbnail": null,
+        "link_flair_text": "Discussion"
+      }
+    ],
+    "after_cursor": null,
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
 
 ### Content Fetching
 
 - **`fetch_content`** — Fetch and extract readable content from any URL
-  - `url` (required) — URL to fetch
-  - `offset` (optional, default: 0) — pagination offset
-  - Automatic fallback chain: static fetch → JS rendering (if empty) → Jina Reader (if still empty/error)
-  - Content is returned in 30K character chunks. Use `next_offset` from the response to paginate.
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "url": "https://example.com/long-article",
+    "offset": 0
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "content": "Example Domain\n\nThis domain is for use in illustrative examples...",
+    "content_length": 66,
+    "is_truncated": false,
+    "offset": 0,
+    "next_offset": null,
+    "total_length": 66,
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
 
 - **`fetch_youtube_content`** — Download and transcribe YouTube video audio
-  - `video_id` (required) — video ID or full URL (e.g. `dQw4w9WgXcQ` or `https://www.youtube.com/watch?v=dQw4w9WgXcQ`)
-  - Returns: video_id, transcript, transcript_length
-  - Requires: STT endpoint (see [Configuration](#configuration))
 
-### Reddit
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "video_id": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "video_id": "dQw4w9WgXcQ",
+    "transcript": "We're no strangers to love...",
+    "transcript_length": 33,
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
 
 - **`fetch_subreddit`** — Browse subreddit posts
-  - `subreddit` (required) — subreddit name without `r/` prefix
-  - `sort` (optional, default: `hot`) — hot, new, top, rising, controversial
-  - `time_filter` (optional) — hour, day, week, month, year, all (for top/controversial)
-  - `limit` (optional, default: 25, max: 100)
-  - `after` (optional) — pagination cursor from previous response
-  - Returns: post summaries with title, author, score, comment count, url
 
-- **`fetch_subreddit_post`** — Fetch a post with full comment tree
-  - `subreddit` (required) — subreddit name without `r/` prefix
-  - `post_id` (required) — post ID without `t3_` prefix
-  - `sort` (optional, default: `confidence`) — confidence, top, new, controversial, old, qa
-  - `limit` (optional, default: 100, max: 500) — max comments
-  - `depth` (optional) — max reply nesting depth
-  - Returns: post detail with selftext, media URLs, and nested comments
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "week",
+    "limit": 2,
+    "after": null
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "subreddit": "python",
+    "sort": "top",
+    "time_filter": "week",
+    "posts": [
+      {
+        "id": "1abcde",
+        "title": "A useful Python project",
+        "author": "example_user",
+        "subreddit": "python",
+        "score": 142,
+        "num_comments": 27,
+        "created_utc": 1784044800.0,
+        "url": "https://example.com/python-project",
+        "permalink": "/r/python/comments/1abcde/a_useful_python_project/",
+        "is_self": false,
+        "selftext": null,
+        "thumbnail": "https://example.com/thumbnail.jpg",
+        "link_flair_text": "Resource"
+      }
+    ],
+    "after_cursor": "t3_1abcde",
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
+
+- **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "reference": "https://www.reddit.com/r/python/comments/1abcde/example/",
+    "sort": "top",
+    "limit": 50,
+    "depth": 3
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "post": {
+      "title": "Structured concurrency patterns for asyncio",
+      "author": "example_user",
+      "num_comments": 42,
+      "created_utc": 1784044800.0,
+      "url": "https://www.reddit.com/r/python/comments/1abcde/example/",
+      "is_self": true,
+      "selftext": "A discussion of task groups and cancellation.",
+      "media_urls": [],
+      "comments": [
+        {
+          "id": "def456",
+          "author": "commenter",
+          "body": "This pattern also makes timeouts easier to manage.",
+          "parent_id": "t3_1abcde",
+          "created_utc": 1784048400.0,
+          "depth": 0
+        }
+      ],
+      "id": "1abcde",
+      "subreddit": "python",
+      "score": 321,
+      "permalink": "/r/python/comments/1abcde/example/",
+      "more_comment_ids": ["ghi789"]
+    },
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
+
+- **`fetch_more_comments`** — Expand omitted comment branches
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "post_id": "1abcde",
+    "comment_ids": ["ghi789", "jkl012"],
+    "sort": "confidence"
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "post_id": "1abcde",
+    "comments": [
+      {
+        "id": "ghi789",
+        "author": "another_user",
+        "body": "Here is an expanded reply.",
+        "parent_id": "t1_def456",
+        "created_utc": 1784052000.0,
+        "depth": 1
+      }
+    ],
+    "more_comment_ids": ["mno345"],
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
+
+- **`fetch_subreddit_info`** — Fetch public community metadata
+
+  <table>
+  <tr>
+  <td>
+  <details>
+  <summary>Input</summary>
+
+  ```json
+  {
+    "subreddit": "python"
+  }
+  ```
+
+  </details>
+  </td>
+  <td>
+  <details>
+  <summary>Output</summary>
+
+  ```json
+  {
+    "display_name": "Python",
+    "title": "Python",
+    "public_description": "News about the programming language Python.",
+    "subscribers": 1496121,
+    "active_user_count": null,
+    "created_utc": 1201242956.0,
+    "over18": false,
+    "quarantined": false,
+    "subreddit_type": "public",
+    "url": "/r/Python/",
+    "icon_img": "https://styles.redditmedia.com/example-icon.png",
+    "banner_img": "https://styles.redditmedia.com/example-banner.png",
+    "success": true
+  }
+  ```
+
+  </details>
+
+  </td>
+  </tr>
+  </table>
 
 ## Quick Start
 
@@ -108,6 +486,9 @@ mcporter call webintel-mcp.search query="AI breakthroughs" categories="science" 
 mcporter call webintel-mcp.search query="open source LLM" categories="news" time_range="day" language="en"
 mcporter call webintel-mcp.fetch_content url="https://example.com"
 mcporter call webintel-mcp.fetch_subreddit subreddit="python" sort="top" time_filter="week"
+mcporter call webintel-mcp.search_reddit query="asyncio patterns" subreddit="python" sort="top" time_filter="year"
+mcporter call webintel-mcp.fetch_reddit_post reference="https://www.reddit.com/r/python/comments/POST_ID/title/"
+mcporter call webintel-mcp.fetch_subreddit_info subreddit="python"
 ```
 
 ## Docker Options
@@ -152,7 +533,7 @@ docker compose --profile vpn up -d
 
 When using the VPN profile:
 - **SearxNG** shares Gluetun's network stack — all search engine queries route through the VPN
-- **Fetcher tools** (fetch_content, fetch_youtube_content, fetch_subreddit, fetch_subreddit_post) use the HTTP proxy at `PROXY_URL`
+- **Fetcher tools** (fetch_content, fetch_youtube_content, fetch_subreddit, fetch_reddit_post) use the HTTP proxy at `PROXY_URL`
 - Without VPN (`docker compose up -d`), everything connects directly
 
 ## Configuration
