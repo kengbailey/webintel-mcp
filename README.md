@@ -11,12 +11,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 ### Search
 
 - **`search`** — Web search via SearxNG
-  - `query` (required) — search terms
-  - `max_results` (optional, default: 10, max: 25)
-  - `categories` (optional) — comma-separated: `general`, `news`, `science`, `it`, `music`
-  - `time_range` (optional) — `day`, `month`, or `year`
-  - `language` (optional) — ISO language code (e.g., `en`, `de`, `fr`)
-  - Returns: title, url, content snippet, score
 
   Input:
 
@@ -44,9 +38,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`search_videos`** — YouTube video search
-  - `query` (required) — video search terms
-  - `max_results` (optional, default: 10, max: 20)
-  - Returns: url, title, author, content summary, length
 
   Input:
 
@@ -74,10 +65,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 ### Content Fetching
 
 - **`fetch_content`** — Fetch and extract readable content from any URL
-  - `url` (required) — URL to fetch
-  - `offset` (optional, default: 0) — pagination offset
-  - Automatic fallback chain: static fetch → JS rendering (if empty) → Jina Reader (if still empty/error)
-  - Content is returned in 30K character chunks. Use `next_offset` from the response to paginate.
 
   Input:
 
@@ -103,9 +90,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`fetch_youtube_content`** — Download and transcribe YouTube video audio
-  - `video_id` (required) — video ID or full URL (e.g. `dQw4w9WgXcQ` or `https://www.youtube.com/watch?v=dQw4w9WgXcQ`)
-  - Returns: video_id, transcript, transcript_length
-  - Requires: STT endpoint (see [Configuration](#configuration))
 
   Input:
 
@@ -129,12 +113,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 ### Reddit
 
 - **`fetch_subreddit`** — Browse subreddit posts
-  - `subreddit` (required) — subreddit name without `r/` prefix
-  - `sort` (optional, default: `hot`) — hot, new, top, rising, controversial
-  - `time_filter` (optional) — hour, day, week, month, year, all (for top/controversial)
-  - `limit` (optional, default: 25, max: 100)
-  - `after` (optional) — pagination cursor from previous response
-  - Returns: post summaries with title, author, score, comment count, url
 
   Input:
 
@@ -178,12 +156,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`fetch_subreddit_post`** — Fetch a post with full comment tree
-  - `subreddit` (required) — subreddit name without `r/` prefix
-  - `post_id` (required) — post ID without `t3_` prefix
-  - `sort` (optional, default: `confidence`) — confidence, top, new, controversial, old, qa
-  - `limit` (optional, default: 100, max: 500) — max comments
-  - `depth` (optional) — max reply nesting depth
-  - Returns: post detail with selftext, media URLs, flattened comments, and IDs for omitted comments
 
   Input:
 
@@ -231,10 +203,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`search_reddit`** — Search public Reddit posts globally or within one subreddit
-  - `query` (required) — search terms
-  - `subreddit` (optional) — restrict results to one subreddit
-  - `sort` (optional, default: `relevance`) — relevance, hot, top, new, comments
-  - `time_filter`, `limit`, and `after` support time filtering and pagination
 
   Input:
 
@@ -280,9 +248,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
-  - `reference` (required) — any supported Reddit post reference
-  - `sort`, `limit`, and `depth` control returned comments
-  - Returns `more_comment_ids` when Reddit omits parts of the comment tree
 
   Input:
 
@@ -329,9 +294,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`fetch_more_comments`** — Expand omitted comment branches
-  - `post_id` (required) — post ID with or without `t3_`
-  - `comment_ids` (required) — up to 100 IDs from `more_comment_ids`
-  - `sort` (optional, default: `confidence`)
 
   Input:
 
@@ -364,8 +326,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
 - **`fetch_subreddit_info`** — Fetch public community metadata
-  - `subreddit` (required) — subreddit name without `r/`
-  - Returns description, subscriber/activity counts, NSFW/quarantine flags, type, and imagery
 
   Input:
 
