@@ -52,7 +52,27 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   - `sort` (optional, default: `confidence`) — confidence, top, new, controversial, old, qa
   - `limit` (optional, default: 100, max: 500) — max comments
   - `depth` (optional) — max reply nesting depth
-  - Returns: post detail with selftext, media URLs, and nested comments
+  - Returns: post detail with selftext, media URLs, flattened comments, and IDs for omitted comments
+
+- **`search_reddit`** — Search public Reddit posts globally or within one subreddit
+  - `query` (required) — search terms
+  - `subreddit` (optional) — restrict results to one subreddit
+  - `sort` (optional, default: `relevance`) — relevance, hot, top, new, comments
+  - `time_filter`, `limit`, and `after` support time filtering and pagination
+
+- **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
+  - `reference` (required) — any supported Reddit post reference
+  - `sort`, `limit`, and `depth` control returned comments
+  - Returns `more_comment_ids` when Reddit omits parts of the comment tree
+
+- **`fetch_more_comments`** — Expand omitted comment branches
+  - `post_id` (required) — post ID with or without `t3_`
+  - `comment_ids` (required) — up to 100 IDs from `more_comment_ids`
+  - `sort` (optional, default: `confidence`)
+
+- **`fetch_subreddit_info`** — Fetch public community metadata
+  - `subreddit` (required) — subreddit name without `r/`
+  - Returns description, subscriber/activity counts, NSFW/quarantine flags, type, and imagery
 
 ## Quick Start
 
@@ -108,6 +128,9 @@ mcporter call webintel-mcp.search query="AI breakthroughs" categories="science" 
 mcporter call webintel-mcp.search query="open source LLM" categories="news" time_range="day" language="en"
 mcporter call webintel-mcp.fetch_content url="https://example.com"
 mcporter call webintel-mcp.fetch_subreddit subreddit="python" sort="top" time_filter="week"
+mcporter call webintel-mcp.search_reddit query="asyncio patterns" subreddit="python" sort="top" time_filter="year"
+mcporter call webintel-mcp.fetch_reddit_post reference="https://www.reddit.com/r/python/comments/POST_ID/title/"
+mcporter call webintel-mcp.fetch_subreddit_info subreddit="python"
 ```
 
 ## Docker Options
