@@ -12,6 +12,9 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
 - **`search`** — Web search via SearxNG
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -26,7 +29,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -43,8 +47,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`search_videos`** — YouTube video search
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -56,7 +67,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -74,10 +86,17 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 ### Content Fetching
 
 - **`fetch_content`** — Fetch and extract readable content from any URL
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -89,7 +108,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -107,8 +127,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`fetch_youtube_content`** — Download and transcribe YouTube video audio
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -119,7 +146,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -134,10 +162,17 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 ### Reddit
 
 - **`fetch_subreddit`** — Browse subreddit posts
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -152,7 +187,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -185,8 +221,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`fetch_subreddit_post`** — Fetch a post with full comment tree
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -201,7 +244,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -238,8 +282,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`search_reddit`** — Search public Reddit posts globally or within one subreddit
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -255,7 +306,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -289,8 +341,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -304,7 +363,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -341,8 +401,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`fetch_more_comments`** — Expand omitted comment branches
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -355,7 +422,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -379,8 +447,15 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
   </details>
 
+  </td>
+  </tr>
+  </table>
+
 - **`fetch_subreddit_info`** — Fetch public community metadata
 
+  <table>
+  <tr>
+  <td>
   <details>
   <summary>Input</summary>
 
@@ -391,7 +466,8 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
-
+  </td>
+  <td>
   <details>
   <summary>Output</summary>
 
@@ -414,6 +490,10 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   ```
 
   </details>
+
+  </td>
+  </tr>
+  </table>
 
 ## Quick Start
 
