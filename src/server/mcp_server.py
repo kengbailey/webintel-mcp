@@ -210,57 +210,6 @@ async def fetch_subreddit(
 
 
 @mcp.tool(
-    name="fetch_subreddit_post",
-    tags={"reddit", "post", "comments"},
-    annotations={
-        "title": "Fetch Subreddit Post with Comments",
-        "readOnlyHint": True,
-        "openWorldHint": True,
-        "idempotentHint": False
-    }
-)
-async def fetch_subreddit_post(
-    subreddit: Annotated[str, Field(
-        description="Subreddit name (without r/ prefix, e.g., 'python')",
-        min_length=1,
-        max_length=100
-    )],
-    post_id: Annotated[str, Field(
-        description="Reddit post ID (without t3_ prefix, e.g., '1p6j7ht')",
-        min_length=1,
-        max_length=20
-    )],
-    sort: Annotated[str, Field(
-        description="Comment sort: confidence, top, new, controversial, old, or qa (default: confidence)"
-    )] = "confidence",
-    limit: Annotated[int, Field(
-        description="Maximum comments to fetch (default: 100, min: 1, max: 500)",
-        ge=1,
-        le=500
-    )] = 100,
-    depth: Annotated[int, Field(
-        description="Maximum reply nesting depth (optional, min: 1)"
-    )] = None
-) -> RedditPostOutput:
-    """
-    Fetch a Reddit post with its comments using Reddit's OAuth Data API.
-    
-    Retrieves the post content including title, body, media URLs, and all
-    comments with nested replies maintaining parent-child relationships.
-    
-    Returns:
-        RedditPostOutput with detailed post and comment tree
-    """
-    return await handlers.fetch_subreddit_post(
-        subreddit=subreddit,
-        post_id=post_id,
-        sort=sort,
-        limit=limit,
-        depth=depth
-    )
-
-
-@mcp.tool(
     name="search_reddit",
     tags={"reddit", "search", "posts"},
     annotations={

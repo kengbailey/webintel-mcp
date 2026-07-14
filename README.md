@@ -282,67 +282,6 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   </tr>
   </table>
 
-- **`fetch_subreddit_post`** — Fetch a post with full comment tree
-
-  <table>
-  <tr>
-  <td>
-  <details>
-  <summary>Input</summary>
-
-  ```json
-  {
-    "subreddit": "python",
-    "post_id": "1abcde",
-    "sort": "confidence",
-    "limit": 100,
-    "depth": 5
-  }
-  ```
-
-  </details>
-  </td>
-  <td>
-  <details>
-  <summary>Output</summary>
-
-  ```json
-  {
-    "post": {
-      "title": "What are your favorite asyncio patterns?",
-      "author": "example_user",
-      "num_comments": 48,
-      "created_utc": 1784044800.0,
-      "url": "https://www.reddit.com/r/python/comments/1abcde/example/",
-      "is_self": true,
-      "selftext": "Share the patterns that have worked well for you.",
-      "media_urls": [],
-      "comments": [
-        {
-          "id": "def456",
-          "author": "commenter",
-          "body": "Task groups make cancellation much easier to reason about.",
-          "parent_id": "t3_1abcde",
-          "created_utc": 1784048400.0,
-          "depth": 0
-        }
-      ],
-      "id": "1abcde",
-      "subreddit": "python",
-      "score": 215,
-      "permalink": "/r/python/comments/1abcde/example/",
-      "more_comment_ids": ["ghi789", "jkl012"]
-    },
-    "success": true
-  }
-  ```
-
-  </details>
-
-  </td>
-  </tr>
-  </table>
-
 - **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
 
   <table>
@@ -594,7 +533,7 @@ docker compose --profile vpn up -d
 
 When using the VPN profile:
 - **SearxNG** shares Gluetun's network stack — all search engine queries route through the VPN
-- **Fetcher tools** (fetch_content, fetch_youtube_content, fetch_subreddit, fetch_subreddit_post) use the HTTP proxy at `PROXY_URL`
+- **Fetcher tools** (fetch_content, fetch_youtube_content, fetch_subreddit, fetch_reddit_post) use the HTTP proxy at `PROXY_URL`
 - Without VPN (`docker compose up -d`), everything connects directly
 
 ## Configuration

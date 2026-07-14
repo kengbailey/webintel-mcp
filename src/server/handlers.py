@@ -356,9 +356,9 @@ class SearchHandlers:
         except Exception as e:
             raise ToolError(f"Unexpected error: {str(e)}")
     
-    async def fetch_subreddit_post(
+    async def _fetch_reddit_post_by_id(
         self,
-        subreddit: str,
+        subreddit: str | None,
         post_id: str,
         sort: str = "confidence",
         limit: int = 100,
@@ -486,7 +486,7 @@ class SearchHandlers:
             )
         except SearchException as e:
             raise ToolError(f"Invalid Reddit post reference: {str(e)}")
-        return await self.fetch_subreddit_post(
+        return await self._fetch_reddit_post_by_id(
             subreddit=subreddit,
             post_id=post_id,
             sort=sort,
