@@ -18,7 +18,10 @@ from ..core.models import (
     RedditComment,
     RedditPostDetail,
     SubredditPostsOutput,
-    RedditPostOutput
+    RedditPostOutput,
+    RedditSearchOutput,
+    RedditCommentsOutput,
+    SubredditInfoOutput,
 )
 
 
@@ -257,6 +260,23 @@ class SearchHandlers:
                 comments.extend(replies)
         
         return comments
+
+    def _collect_more_comment_ids(self, children: List[Dict]) -> List[str]:
+        """Collect expandable comment IDs from nested Reddit `more` objects."""
+        comment_ids = []
+        for child in children:
+            if child.get("kind") == "more":
+                for comment_id in child.get("data", {}).get("children", []):
+                    if comment_id and comment_id not in comment_ids:
+                        comment_ids.append(comment_id)
+                continue
+            replies = child.get("data", {}).get("replies")
+            if isinstance(replies, dict):
+                nested = replies.get("data", {}).get("children", [])
+                for comment_id in self._collect_more_comment_ids(nested):
+                    if comment_id not in comment_ids:
+                        comment_ids.append(comment_id)
+        return comment_ids
     
     def _extract_media_urls(self, post_data: Dict[str, Any]) -> List[str]:
         """Extract media URLs from Reddit post data."""
@@ -396,7 +416,12 @@ class SearchHandlers:
                 is_self=post_data.get("is_self", False),
                 selftext=post_data.get("selftext") if post_data.get("selftext") else None,
                 media_urls=media_urls,
-                comments=comments
+                comments=comments,
+                id=post_data.get("id"),
+                subreddit=post_data.get("subreddit"),
+                score=post_data.get("score", 0),
+                permalink=post_data.get("permalink"),
+                more_comment_ids=self._collect_more_comment_ids(comments_listing),
             )
             
             return RedditPostOutput(
@@ -405,5 +430,114 @@ class SearchHandlers:
             )
         except SearchException as e:
             raise ToolError(f"Failed to fetch Reddit post: {str(e)}")
+        except Exception as e:
+            raise ToolError(f"Unexpected error: {str(e)}")
+
+    async def search_reddit(
+        self,
+        query: str,
+        subreddit: str = None,
+        sort: str = "relevance",
+        time_filter: str = None,
+        limit: int = 25,
+        after: str = None,
+    ) -> RedditSearchOutput:
+        """Search Reddit posts globally or within a subreddit."""
+        try:
+            response = await self.reddit_fetcher.search_posts(
+                query=query,
+                subreddit=subreddit,
+                sort=sort,
+                time_filter=time_filter,
+                limit=limit,
+                after=after,
+            )
+            data = response.get("data", {})
+            posts = [
+                self._parse_reddit_post_summary(child.get("data", {}))
+                for child in data.get("children", [])
+                if child.get("kind") == "t3"
+            ]
+            return RedditSearchOutput(
+                query=query,
+                subreddit=subreddit,
+                sort=sort,
+                time_filter=time_filter,
+                posts=posts,
+                after_cursor=data.get("after"),
+                success=True,
+            )
+        except SearchException as e:
+            raise ToolError(f"Failed to search Reddit: {str(e)}")
+        except Exception as e:
+            raise ToolError(f"Unexpected error: {str(e)}")
+
+    async def fetch_reddit_post(
+        self,
+        reference: str,
+        sort: str = "confidence",
+        limit: int = 100,
+        depth: int = None,
+    ) -> RedditPostOutput:
+        """Fetch a post from its URL, permalink, redd.it URL, or post ID."""
+        try:
+            post_id, subreddit = self.reddit_fetcher.parse_post_reference(reference)
+        except SearchException as e:
+            raise ToolError(f"Invalid Reddit post reference: {str(e)}")
+        return await self.fetch_subreddit_post(
+            subreddit=subreddit,
+            post_id=post_id,
+            sort=sort,
+            limit=limit,
+            depth=depth,
+        )
+
+    async def fetch_more_comments(
+        self,
+        post_id: str,
+        comment_ids: List[str],
+        sort: str = "confidence",
+    ) -> RedditCommentsOutput:
+        """Expand comment IDs from a post's `more_comment_ids` field."""
+        try:
+            response = await self.reddit_fetcher.fetch_more_comments(
+                post_id=post_id,
+                comment_ids=comment_ids,
+                sort=sort,
+            )
+            things = response.get("json", {}).get("data", {}).get("things", [])
+            return RedditCommentsOutput(
+                post_id=post_id.removeprefix("t3_"),
+                comments=self._parse_reddit_comments(things),
+                more_comment_ids=self._collect_more_comment_ids(things),
+                success=True,
+            )
+        except SearchException as e:
+            raise ToolError(f"Failed to expand Reddit comments: {str(e)}")
+        except Exception as e:
+            raise ToolError(f"Unexpected error: {str(e)}")
+
+    async def fetch_subreddit_info(self, subreddit: str) -> SubredditInfoOutput:
+        """Fetch public metadata describing a subreddit."""
+        try:
+            response = await self.reddit_fetcher.fetch_subreddit_info(subreddit)
+            data = response.get("data", {})
+            return SubredditInfoOutput(
+                display_name=data.get("display_name", subreddit),
+                title=data.get("title", ""),
+                public_description=data.get("public_description", ""),
+                subscribers=data.get("subscribers"),
+                active_user_count=data.get("active_user_count"),
+                created_utc=data.get("created_utc"),
+                over18=data.get("over18", False),
+                quarantined=data.get("quarantine", False),
+                subreddit_type=data.get("subreddit_type"),
+                url=data.get("url", f"/r/{subreddit}/"),
+                icon_img=data.get("icon_img") or None,
+                banner_img=data.get("banner_img") or None,
+                success=True,
+            )
+        except SearchException as e:
+            raise ToolError(f"Failed to fetch subreddit info: {str(e)}")
         except Exception as e:
             raise ToolError(f"Unexpected error: {str(e)}")

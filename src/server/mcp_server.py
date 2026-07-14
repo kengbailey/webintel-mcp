@@ -16,7 +16,10 @@ from ..core.models import (
     FetchContentOutput, 
     YouTubeContentOutput,
     SubredditPostsOutput,
-    RedditPostOutput
+    RedditPostOutput,
+    RedditSearchOutput,
+    RedditCommentsOutput,
+    SubredditInfoOutput,
 )
 
 
@@ -255,6 +258,144 @@ async def fetch_subreddit_post(
         limit=limit,
         depth=depth
     )
+
+
+@mcp.tool(
+    name="search_reddit",
+    tags={"reddit", "search", "posts"},
+    annotations={
+        "title": "Search Reddit Posts",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": True,
+    },
+)
+async def search_reddit(
+    query: Annotated[str, Field(
+        description="Search query",
+        min_length=1,
+        max_length=500,
+    )],
+    subreddit: Annotated[Optional[str], Field(
+        description="Optional subreddit name; omit to search all of Reddit",
+        max_length=100,
+    )] = None,
+    sort: Annotated[str, Field(
+        description="Sort: relevance, hot, top, new, or comments",
+    )] = "relevance",
+    time_filter: Annotated[Optional[str], Field(
+        description="Time filter: hour, day, week, month, year, or all",
+    )] = None,
+    limit: Annotated[int, Field(
+        description="Number of posts to return",
+        ge=1,
+        le=100,
+    )] = 25,
+    after: Annotated[Optional[str], Field(
+        description="Pagination cursor from a previous search",
+    )] = None,
+) -> RedditSearchOutput:
+    """Search public Reddit posts globally or within one subreddit."""
+    return await handlers.search_reddit(
+        query=query,
+        subreddit=subreddit,
+        sort=sort,
+        time_filter=time_filter,
+        limit=limit,
+        after=after,
+    )
+
+
+@mcp.tool(
+    name="fetch_reddit_post",
+    tags={"reddit", "post", "comments", "url"},
+    annotations={
+        "title": "Fetch Reddit Post by URL or ID",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": True,
+    },
+)
+async def fetch_reddit_post(
+    reference: Annotated[str, Field(
+        description="Reddit post URL, permalink, redd.it URL, or post ID",
+        min_length=1,
+        max_length=500,
+    )],
+    sort: Annotated[str, Field(
+        description="Comment sort: confidence, top, new, controversial, old, or qa",
+    )] = "confidence",
+    limit: Annotated[int, Field(
+        description="Maximum comments to fetch",
+        ge=1,
+        le=500,
+    )] = 100,
+    depth: Annotated[Optional[int], Field(
+        description="Maximum reply nesting depth",
+        ge=1,
+    )] = None,
+) -> RedditPostOutput:
+    """Fetch a Reddit post and comments from a URL, permalink, or post ID."""
+    return await handlers.fetch_reddit_post(
+        reference=reference,
+        sort=sort,
+        limit=limit,
+        depth=depth,
+    )
+
+
+@mcp.tool(
+    name="fetch_more_comments",
+    tags={"reddit", "comments", "thread"},
+    annotations={
+        "title": "Expand Reddit Comments",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": True,
+    },
+)
+async def fetch_more_comments(
+    post_id: Annotated[str, Field(
+        description="Reddit post ID, with or without the t3_ prefix",
+        min_length=1,
+        max_length=20,
+    )],
+    comment_ids: Annotated[List[str], Field(
+        description="Comment IDs from a post's more_comment_ids field",
+        min_length=1,
+        max_length=100,
+    )],
+    sort: Annotated[str, Field(
+        description="Comment sort: confidence, top, new, controversial, old, or qa",
+    )] = "confidence",
+) -> RedditCommentsOutput:
+    """Expand omitted comments using IDs returned by a post fetch."""
+    return await handlers.fetch_more_comments(
+        post_id=post_id,
+        comment_ids=comment_ids,
+        sort=sort,
+    )
+
+
+@mcp.tool(
+    name="fetch_subreddit_info",
+    tags={"reddit", "subreddit", "metadata"},
+    annotations={
+        "title": "Fetch Subreddit Information",
+        "readOnlyHint": True,
+        "openWorldHint": True,
+        "idempotentHint": True,
+    },
+)
+async def fetch_subreddit_info(
+    subreddit: Annotated[str, Field(
+        description="Subreddit name without the r/ prefix",
+        min_length=1,
+        max_length=100,
+    )],
+) -> SubredditInfoOutput:
+    """Fetch public metadata for a subreddit."""
+    return await handlers.fetch_subreddit_info(subreddit)
 
 
 def resolve_transport(cli_http=False, cli_sse=False, env_transport=None):

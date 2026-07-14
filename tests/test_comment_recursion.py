@@ -173,3 +173,22 @@ class TestCommentRecursionDepth:
             d = c.model_dump()
             assert "depth" in d
             assert "replies" not in d
+
+    def test_collects_nested_more_comment_ids(self):
+        children = [
+            {
+                "kind": "t1",
+                "data": {
+                    "replies": {
+                        "data": {
+                            "children": [
+                                {"kind": "more", "data": {"children": ["abc", "def"]}}
+                            ]
+                        }
+                    }
+                },
+            },
+            {"kind": "more", "data": {"children": ["def", "ghi"]}},
+        ]
+
+        assert self.handlers._collect_more_comment_ids(children) == ["abc", "def", "ghi"]

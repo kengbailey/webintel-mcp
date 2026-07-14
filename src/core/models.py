@@ -3,7 +3,7 @@ Pydantic models for search results and API responses
 """
 
 from typing import List, Optional, Union
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 # Specific data models for different search types
@@ -140,6 +140,11 @@ class RedditPostDetail(BaseModel):
     selftext: Optional[str] = None
     media_urls: List[str] = []  # Extracted media/image URLs
     comments: List[RedditComment] = []
+    id: Optional[str] = None
+    subreddit: Optional[str] = None
+    score: Optional[int] = None
+    permalink: Optional[str] = None
+    more_comment_ids: List[str] = Field(default_factory=list)
 
 
 class SubredditPostsOutput(BaseModel):
@@ -155,4 +160,40 @@ class SubredditPostsOutput(BaseModel):
 class RedditPostOutput(BaseModel):
     """Output model for single Reddit post with comments."""
     post: RedditPostDetail
+    success: bool
+
+
+class RedditSearchOutput(BaseModel):
+    """Output model for Reddit post search."""
+    query: str
+    subreddit: Optional[str] = None
+    sort: str
+    time_filter: Optional[str] = None
+    posts: List[RedditPostSummary]
+    after_cursor: Optional[str] = None
+    success: bool
+
+
+class RedditCommentsOutput(BaseModel):
+    """Output model for an expanded set of Reddit comments."""
+    post_id: str
+    comments: List[RedditComment]
+    more_comment_ids: List[str] = Field(default_factory=list)
+    success: bool
+
+
+class SubredditInfoOutput(BaseModel):
+    """Public metadata describing a subreddit."""
+    display_name: str
+    title: str
+    public_description: str
+    subscribers: Optional[int] = None
+    active_user_count: Optional[int] = None
+    created_utc: Optional[float] = None
+    over18: bool = False
+    quarantined: bool = False
+    subreddit_type: Optional[str] = None
+    url: str
+    icon_img: Optional[str] = None
+    banner_img: Optional[str] = None
     success: bool
