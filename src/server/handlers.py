@@ -245,7 +245,7 @@ class SearchHandlers:
                 body=comment_data.get("body", ""),
                 parent_id=parent_id,
                 created_utc=comment_data.get("created_utc", 0),
-                depth=depth
+                depth=comment_data.get("depth", depth),
             )
             comments.append(comment)
             
@@ -481,7 +481,9 @@ class SearchHandlers:
     ) -> RedditPostOutput:
         """Fetch a post from its URL, permalink, redd.it URL, or post ID."""
         try:
-            post_id, subreddit = self.reddit_fetcher.parse_post_reference(reference)
+            post_id, subreddit = await self.reddit_fetcher.resolve_post_reference(
+                reference
+            )
         except SearchException as e:
             raise ToolError(f"Invalid Reddit post reference: {str(e)}")
         return await self.fetch_subreddit_post(

@@ -60,7 +60,7 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
   - `sort` (optional, default: `relevance`) — relevance, hot, top, new, comments
   - `time_filter`, `limit`, and `after` support time filtering and pagination
 
-- **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `redd.it` URL, or post ID
+- **`fetch_reddit_post`** — Fetch a post using a URL, permalink, `/s/` share URL, `redd.it` URL, or post ID
   - `reference` (required) — any supported Reddit post reference
   - `sort`, `limit`, and `depth` control returned comments
   - Returns `more_comment_ids` when Reddit omits parts of the comment tree

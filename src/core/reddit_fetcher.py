@@ -4,7 +4,7 @@ import asyncio
 import re
 import time
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -76,6 +76,71 @@ class RedditFetcher:
         if not post_id or not cls.POST_ID_PATTERN.fullmatch(post_id):
             raise SearchException("Could not find a valid post ID in the Reddit URL")
         return post_id.lower(), subreddit
+
+    async def resolve_post_reference(self, reference: str) -> tuple[str, Optional[str]]:
+        """Resolve canonical references directly and Reddit share URLs via redirects."""
+        try:
+            return self.parse_post_reference(reference)
+        except SearchException as e:
+            parse_error = e
+
+        share_url = reference.strip()
+        if share_url.startswith("/"):
+            share_url = f"https://www.reddit.com{share_url}"
+        parsed = urlparse(share_url)
+        host = (parsed.hostname or "").lower()
+        parts = [part for part in parsed.path.split("/") if part]
+        is_reddit_host = host == "reddit.com" or host.endswith(".reddit.com")
+        is_share_url = (
+            parsed.scheme in {"http", "https"}
+            and is_reddit_host
+            and len(parts) >= 4
+            and parts[0].lower() == "r"
+            and parts[2].lower() == "s"
+        )
+        if not is_share_url:
+            raise parse_error
+
+        try:
+            async with httpx.AsyncClient(proxy=SearchConfig.REDDIT_PROXY_URL) as client:
+                for _ in range(5):
+                    response = await client.get(
+                        share_url,
+                        headers=self.headers,
+                        follow_redirects=False,
+                        timeout=SearchConfig.FETCH_TIMEOUT,
+                    )
+                    location = response.headers.get("location")
+                    if not response.is_redirect or not location:
+                        response.raise_for_status()
+                        break
+
+                    share_url = urljoin(str(response.url), location)
+                    try:
+                        return self.parse_post_reference(share_url)
+                    except SearchException:
+                        redirect = urlparse(share_url)
+                        redirect_host = (redirect.hostname or "").lower()
+                        if not (
+                            redirect.scheme in {"http", "https"}
+                            and (
+                                redirect_host == "reddit.com"
+                                or redirect_host.endswith(".reddit.com")
+                            )
+                        ):
+                            raise SearchException(
+                                "Reddit share URL redirected outside Reddit"
+                            )
+        except httpx.TimeoutException:
+            raise SearchException("Reddit share URL resolution timed out")
+        except httpx.HTTPStatusError as e:
+            raise SearchException(
+                f"Reddit share URL resolution failed with HTTP {e.response.status_code}"
+            )
+        except httpx.HTTPError as e:
+            raise SearchException(f"Reddit share URL resolution failed: {e}")
+
+        raise SearchException("Reddit share URL did not resolve to a post")
 
     async def _get_access_token(self, force_refresh: bool = False) -> str:
         """Return a cached application-only OAuth token."""

@@ -192,3 +192,33 @@ class TestCommentRecursionDepth:
         ]
 
         assert self.handlers._collect_more_comment_ids(children) == ["abc", "def", "ghi"]
+
+    def test_uses_reddit_depth_for_flat_expanded_comments(self):
+        children = [
+            {
+                "kind": "t1",
+                "data": {
+                    "id": "parent",
+                    "author": "user1",
+                    "body": "Parent",
+                    "parent_id": "t1_outside",
+                    "created_utc": 1,
+                    "depth": 4,
+                },
+            },
+            {
+                "kind": "t1",
+                "data": {
+                    "id": "child",
+                    "author": "user2",
+                    "body": "Child",
+                    "parent_id": "t1_parent",
+                    "created_utc": 2,
+                    "depth": 5,
+                },
+            },
+        ]
+
+        comments = self.handlers._parse_reddit_comments(children)
+
+        assert [comment.depth for comment in comments] == [4, 5]

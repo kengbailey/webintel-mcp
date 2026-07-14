@@ -318,7 +318,7 @@ async def search_reddit(
 )
 async def fetch_reddit_post(
     reference: Annotated[str, Field(
-        description="Reddit post URL, permalink, redd.it URL, or post ID",
+        description="Reddit post URL, /s/ share URL, permalink, redd.it URL, or post ID",
         min_length=1,
         max_length=500,
     )],
@@ -335,7 +335,7 @@ async def fetch_reddit_post(
         ge=1,
     )] = None,
 ) -> RedditPostOutput:
-    """Fetch a Reddit post and comments from a URL, permalink, or post ID."""
+    """Fetch a Reddit post and comments from a URL, share URL, permalink, or post ID."""
     return await handlers.fetch_reddit_post(
         reference=reference,
         sort=sort,

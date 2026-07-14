@@ -96,6 +96,48 @@ def test_parse_post_reference_rejects_non_reddit_url():
 
 
 @pytest.mark.asyncio
+async def test_resolve_post_reference_follows_reddit_share_redirect():
+    fetcher = RedditFetcher()
+    share_url = "https://www.reddit.com/r/python/s/share123"
+    redirect = response(
+        302,
+        headers={
+            "location": "https://www.reddit.com/r/python/comments/1abcde/example_title/"
+        },
+        request_url=share_url,
+    )
+    client = AsyncMock()
+    client.get.return_value = redirect
+    client.__aenter__.return_value = client
+    client.__aexit__.return_value = None
+
+    with patch("src.core.reddit_fetcher.httpx.AsyncClient", return_value=client):
+        result = await fetcher.resolve_post_reference(share_url)
+
+    assert result == ("1abcde", "python")
+    assert client.get.await_args.kwargs["follow_redirects"] is False
+
+
+@pytest.mark.asyncio
+async def test_resolve_post_reference_rejects_external_share_redirect():
+    fetcher = RedditFetcher()
+    share_url = "https://www.reddit.com/r/python/s/share123"
+    redirect = response(
+        302,
+        headers={"location": "https://example.com/r/python/comments/1abcde/title/"},
+        request_url=share_url,
+    )
+    client = AsyncMock()
+    client.get.return_value = redirect
+    client.__aenter__.return_value = client
+    client.__aexit__.return_value = None
+
+    with patch("src.core.reddit_fetcher.httpx.AsyncClient", return_value=client):
+        with pytest.raises(SearchException, match="outside Reddit"):
+            await fetcher.resolve_post_reference(share_url)
+
+
+@pytest.mark.asyncio
 async def test_search_posts_scopes_to_subreddit():
     fetcher = RedditFetcher()
     fetcher._get = AsyncMock(return_value=response(200, {"kind": "Listing"}))
