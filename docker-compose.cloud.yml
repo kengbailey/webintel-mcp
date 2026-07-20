@@ -39,21 +39,25 @@ services:
     ports:
       - "127.0.0.1:3090:3090"   # localhost only; cloudflared reaches it over the compose network
     environment:
+      # Explicit ${VAR:-} interpolation: values come from the file passed via
+      # `docker compose --env-file` (see deploy/scripts/bootstrap.sh). Bare
+      # pass-through entries (`- VAR`) read only the shell environment, NOT
+      # the --env-file, and would silently start the server with auth off.
       - SEARXNG_HOST=http://searxng:8080
-      - STT_ENDPOINT
-      - STT_MODEL
-      - STT_API_KEY
-      - REDDIT_CLIENT_ID
-      - REDDIT_CLIENT_SECRET
-      - REDDIT_USER_AGENT
       - MCP_TRANSPORT=http
+      - STT_ENDPOINT=${STT_ENDPOINT:-}
+      - STT_MODEL=${STT_MODEL:-}
+      - STT_API_KEY=${STT_API_KEY:-}
+      - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-}
+      - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-}
+      - REDDIT_USER_AGENT=${REDDIT_USER_AGENT:-}
       # Cloud auth (see src/server/auth.py). Leave empty to disable auth.
-      - MCP_AUTHKIT_DOMAIN
-      - MCP_BASE_URL
-      - MCP_RESOURCE_URL
-      - MCP_REQUIRED_SCOPES
-      - MCP_MACHINE_SECRET
-      - MCP_MACHINE_ISSUER
+      - MCP_AUTHKIT_DOMAIN=${MCP_AUTHKIT_DOMAIN:-}
+      - MCP_BASE_URL=${MCP_BASE_URL:-}
+      - MCP_RESOURCE_URL=${MCP_RESOURCE_URL:-}
+      - MCP_REQUIRED_SCOPES=${MCP_REQUIRED_SCOPES:-}
+      - MCP_MACHINE_SECRET=${MCP_MACHINE_SECRET:-}
+      - MCP_MACHINE_ISSUER=${MCP_MACHINE_ISSUER:-webintel-internal}
     depends_on:
       searxng:
         condition: service_healthy
@@ -65,6 +69,6 @@ services:
     restart: unless-stopped
     command: tunnel run
     environment:
-      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN:-}
     depends_on:
       - webintel-mcp

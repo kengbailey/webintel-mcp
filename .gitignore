@@ -59,3 +59,6 @@ src/core/test.ipynb
 # SearxNG runtime data (auto-generated on first run)
 searxng/uwsgi.ini
 gluetun/servers.json
+
+# Cloud deployment secrets (seeded to Secret Manager, never committed)
+.env.cloud

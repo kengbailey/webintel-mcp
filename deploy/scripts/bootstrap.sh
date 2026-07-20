@@ -13,6 +13,8 @@ SECRET_API="https://secretmanager.googleapis.com/v1"
 PROJECT=$(curl -s -H 'Metadata-Flavor: Google' "${META}/project/project-id")
 TOKEN=$(curl -s -H 'Metadata-Flavor: Google' "${META}/instance/service-accounts/default/token" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 
+# Empty output = secret missing/unseeded OR fetch error; both are reported in
+# the summary below and gated by the fail-closed check.
 get_secret() {
   local secret="$1"
   curl -s -H "Authorization: Bearer ${TOKEN}" "${SECRET_API}/projects/${PROJECT}/secrets/${secret}/versions/latest:access" | python3 -c 'import sys,json,base64;d=json.load(sys.stdin);print(base64.b64decode(d["payload"]["data"]).decode())' 2>/dev/null || true
@@ -35,12 +37,39 @@ pairs=(
   "CLOUDFLARE_TUNNEL_TOKEN=webintel-cloudflare-tunnel-token"
 )
 
+umask 077
 : > "$ENV_FILE"
+chmod 600 "$ENV_FILE"
+
+missing=()
+tunnel_token=""
+authkit_domain=""
+base_url=""
 for kv in "${pairs[@]}"; do
   var="${kv%%=*}"
   secret="${kv#*=}"
-  printf '%s=%s\n' "$var" "$(get_secret "$secret")" >> "$ENV_FILE"
+  val="$(get_secret "$secret")"
+  [ -z "$val" ] && missing+=("$var")
+  case "$var" in
+    CLOUDFLARE_TUNNEL_TOKEN) tunnel_token="$val" ;;
+    MCP_AUTHKIT_DOMAIN)      authkit_domain="$val" ;;
+    MCP_BASE_URL)            base_url="$val" ;;
+  esac
+  printf '%s=%s\n' "$var" "$val" >> "$ENV_FILE"
 done
+
+if [ "${#missing[@]}" -gt 0 ]; then
+  echo "bootstrap: no value for: ${missing[*]}" >&2
+fi
+
+# Fail closed: never publish an unauthenticated server. If the tunnel token is
+# seeded but the OAuth config is not, a seeding or fetch failure would
+# otherwise expose the MCP server publicly with auth disabled.
+if [ -n "$tunnel_token" ] && { [ -z "$authkit_domain" ] || [ -z "$base_url" ]; }; then
+  echo "bootstrap: FATAL: CLOUDFLARE_TUNNEL_TOKEN is seeded but MCP_AUTHKIT_DOMAIN/MCP_BASE_URL are empty." >&2
+  echo "bootstrap: refusing to start a publicly tunneled server without auth. Seed the auth secrets (deploy/scripts/seed-secrets.sh) or remove the tunnel token secret." >&2
+  exit 1
+fi
 
 cd "$APP_DIR"
 docker compose -f docker-compose.cloud.yml --env-file "$ENV_FILE" up -d --build
