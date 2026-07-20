@@ -4,34 +4,52 @@
 # version for each known key; secret containers must already exist
 # (created by `terraform apply`).
 #
+# Portable to bash 3.2 (macOS default) — no associative arrays.
+#
 #   PROJECT=homelab-424902 ./deploy/scripts/seed-secrets.sh .env.cloud
 set -euo pipefail
 PROJECT="${PROJECT:-homelab-424902}"
 ENV_FILE="${1:?usage: seed-secrets.sh <env-file>}"
 
-declare -A MAP=(
-  [MCP_AUTHKIT_DOMAIN]=webintel-mcp-authkit-domain
-  [MCP_BASE_URL]=webintel-mcp-base-url
-  [MCP_RESOURCE_URL]=webintel-mcp-resource-url
-  [MCP_MACHINE_SECRET]=webintel-mcp-machine-secret
-  [MCP_MACHINE_ISSUER]=webintel-mcp-machine-issuer
-  [MCP_REQUIRED_SCOPES]=webintel-mcp-required-scopes
-  [REDDIT_CLIENT_ID]=webintel-reddit-client-id
-  [REDDIT_CLIENT_SECRET]=webintel-reddit-client-secret
-  [REDDIT_USER_AGENT]=webintel-reddit-user-agent
-  [STT_ENDPOINT]=webintel-stt-endpoint
-  [STT_MODEL]=webintel-stt-model
-  [STT_API_KEY]=webintel-stt-api-key
-  [CLOUDFLARE_TUNNEL_TOKEN]=webintel-cloudflare-tunnel-token
+# env var name -> Secret Manager secret id
+pairs=(
+  "MCP_AUTHKIT_DOMAIN=webintel-mcp-authkit-domain"
+  "MCP_BASE_URL=webintel-mcp-base-url"
+  "MCP_RESOURCE_URL=webintel-mcp-resource-url"
+  "MCP_MACHINE_SECRET=webintel-mcp-machine-secret"
+  "MCP_MACHINE_ISSUER=webintel-mcp-machine-issuer"
+  "MCP_REQUIRED_SCOPES=webintel-mcp-required-scopes"
+  "REDDIT_CLIENT_ID=webintel-reddit-client-id"
+  "REDDIT_CLIENT_SECRET=webintel-reddit-client-secret"
+  "REDDIT_USER_AGENT=webintel-reddit-user-agent"
+  "STT_ENDPOINT=webintel-stt-endpoint"
+  "STT_MODEL=webintel-stt-model"
+  "STT_API_KEY=webintel-stt-api-key"
+  "CLOUDFLARE_TUNNEL_TOKEN=webintel-cloudflare-tunnel-token"
 )
+
+secret_for() {
+  local key="$1" kv
+  for kv in "${pairs[@]}"; do
+    if [ "${kv%%=*}" = "$key" ]; then
+      printf '%s' "${kv#*=}"
+      return 0
+    fi
+  done
+  return 1
+}
 
 gcloud services enable secretmanager.googleapis.com --project "$PROJECT" >/dev/null 2>&1 || true
 
-while IFS='=' read -r key val; do
-  [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
-  secret="${MAP[$key]:-}"
+# Split on the FIRST '=' only; `IFS='=' read` would strip trailing '='
+# characters (base64 padding) from values.
+while IFS= read -r line; do
+  case "$line" in ''|\#*) continue ;; esac
+  key="${line%%=*}"
+  val="${line#*=}"
+  secret="$(secret_for "$key" || true)"
   [ -z "$secret" ] && continue
-  printf '%s' "$val" | gcloud secrets versions add "$secret" --data-file - --project "$PROJECT"
+  printf '%s' "$val" | gcloud secrets versions add "$secret" --data-file - --project "$PROJECT" >/dev/null
   echo "seeded $key -> $secret"
 done < "$ENV_FILE"
 
