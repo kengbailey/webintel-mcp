@@ -65,3 +65,4 @@ gluetun/servers.json
 
 # Terraform local state/providers
 .terraform/
+deploy/terraform/terraform.tfstate*
