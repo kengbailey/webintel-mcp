@@ -49,6 +49,12 @@ while IFS= read -r line; do
   val="${line#*=}"
   secret="$(secret_for "$key" || true)"
   [ -z "$secret" ] && continue
+  if [ -z "$val" ]; then
+    # gcloud rejects empty payloads; an unseeded secret already reads as
+    # empty on the VM (bootstrap.sh), so skipping is equivalent.
+    echo "skipped $key (empty value)"
+    continue
+  fi
   printf '%s' "$val" | gcloud secrets versions add "$secret" --data-file - --project "$PROJECT" >/dev/null
   echo "seeded $key -> $secret"
 done < "$ENV_FILE"
