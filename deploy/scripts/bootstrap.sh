@@ -8,17 +8,14 @@ set -euo pipefail
 APP_DIR="${1:-/opt/webintel-mcp}"
 ENV_FILE="/opt/webintel.env"
 META="http://metadata.google.internal/computeMetadata/v1"
+SECRET_API="https://secretmanager.googleapis.com/v1"
 
-PROJECT="$(curl -s -H "Metadata-Flavor: Google" "${META}/project/project-id)"
-TOKEN="$(curl -s -H "Metadata-Flavor: Google" \
-  "${META}/instance/service-accounts/default/token" \
-  | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')"
+PROJECT=$(curl -s -H 'Metadata-Flavor: Google' "${META}/project/project-id")
+TOKEN=$(curl -s -H 'Metadata-Flavor: Google' "${META}/instance/service-accounts/default/token" | python3 -c 'import sys,json;print(json.load(sys.stdin)["access_token"])')
 
 get_secret() {
   local secret="$1"
-  curl -s -H "Authorization: Bearer ${TOKEN}" \
-    "https://secretmanager.googleapis.com/v1/projects/${PROJECT}/secrets/${secret}/versions/latest:access" \
-    | python3 -c 'import sys,json,base64;d=json.load(sys.stdin);print(base64.b64decode(d["payload"]["data"]).decode())' 2>/dev/null || true
+  curl -s -H "Authorization: Bearer ${TOKEN}" "${SECRET_API}/projects/${PROJECT}/secrets/${secret}/versions/latest:access" | python3 -c 'import sys,json,base64;d=json.load(sys.stdin);print(base64.b64decode(d["payload"]["data"]).decode())' 2>/dev/null || true
 }
 
 # env var name -> Secret Manager secret id
@@ -40,7 +37,8 @@ pairs=(
 
 : > "$ENV_FILE"
 for kv in "${pairs[@]}"; do
-  var="${kv%%=*}"; secret="${kv#*=}"
+  var="${kv%%=*}"
+  secret="${kv#*=}"
   printf '%s=%s\n' "$var" "$(get_secret "$secret")" >> "$ENV_FILE"
 done
 
