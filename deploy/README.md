@@ -7,8 +7,10 @@ Cloudflare Tunnel, with OAuth 2.1 (WorkOS AuthKit) + HMAC-JWT auth. See
 ## One-time prerequisites
 
 1. gcloud authed locally (`gcloud auth login`), default project set
-   (`gcloud config set project homelab-424902`).
-2. Terraform installed (`brew install terraform` on macOS).
+   (`gcloud config set project homelab-424902`), and Application Default
+   Credentials for Terraform (`gcloud auth application-default login`).
+2. Terraform installed (`brew install hashicorp/tap/terraform` on macOS —
+   the homebrew-core `terraform` formula is disabled).
 3. APIs enabled (Terraform does this, but you can pre-enable):
    `gcloud services enable compute.googleapis.com secretmanager.googleapis.com`.
 

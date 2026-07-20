@@ -62,3 +62,6 @@ gluetun/servers.json
 
 # Cloud deployment secrets (seeded to Secret Manager, never committed)
 .env.cloud
+
+# Terraform local state/providers
+.terraform/
