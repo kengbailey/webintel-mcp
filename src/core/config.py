@@ -39,6 +39,16 @@ class SearchConfig:
     # Convert empty string to None so httpx/yt-dlp use direct connection
     PROXY_URL = os.getenv('PROXY_URL') or None
 
+    # YouTube has separate proxy control because datacenter and commercial
+    # VPN exit IPs are bot-checked by YouTube (HTTP 403 / "confirm you're
+    # not a bot") while residential IPs are not. Unset inherits PROXY_URL;
+    # set to empty string to force a direct connection.
+    YOUTUBE_PROXY_URL = (
+        (os.getenv('YOUTUBE_PROXY_URL') or None)
+        if 'YOUTUBE_PROXY_URL' in os.environ
+        else PROXY_URL
+    )
+
     # Reddit OAuth configuration. Reddit has separate proxy control because
     # commercial VPN exit nodes are frequently blocked by Reddit.
     REDDIT_CLIENT_ID = os.getenv('REDDIT_CLIENT_ID')

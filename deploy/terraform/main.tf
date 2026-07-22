@@ -72,6 +72,7 @@ locals {
     "webintel-reddit-client-id",
     "webintel-reddit-client-secret",
     "webintel-reddit-user-agent",
+    "webintel-youtube-proxy-url",
     "webintel-stt-endpoint",
     "webintel-stt-model",
     "webintel-stt-api-key",

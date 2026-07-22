@@ -51,6 +51,8 @@ services:
       - REDDIT_CLIENT_ID=${REDDIT_CLIENT_ID:-}
       - REDDIT_CLIENT_SECRET=${REDDIT_CLIENT_SECRET:-}
       - REDDIT_USER_AGENT=${REDDIT_USER_AGENT:-}
+      # YouTube egress via a residential proxy (empty = direct; see config.py)
+      - YOUTUBE_PROXY_URL=${YOUTUBE_PROXY_URL:-}
       # Cloud auth (see src/server/auth.py). Leave empty to disable auth.
       - MCP_AUTHKIT_DOMAIN=${MCP_AUTHKIT_DOMAIN:-}
       - MCP_BASE_URL=${MCP_BASE_URL:-}

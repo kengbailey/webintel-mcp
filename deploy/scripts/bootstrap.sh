@@ -31,6 +31,7 @@ pairs=(
   "REDDIT_CLIENT_ID=webintel-reddit-client-id"
   "REDDIT_CLIENT_SECRET=webintel-reddit-client-secret"
   "REDDIT_USER_AGENT=webintel-reddit-user-agent"
+  "YOUTUBE_PROXY_URL=webintel-youtube-proxy-url"
   "STT_ENDPOINT=webintel-stt-endpoint"
   "STT_MODEL=webintel-stt-model"
   "STT_API_KEY=webintel-stt-api-key"
