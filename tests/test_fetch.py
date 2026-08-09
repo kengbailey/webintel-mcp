@@ -160,7 +160,151 @@ class TestWebContentFetcher:
             text = self.fetcher._parse_html_content(minimal_html)
             assert isinstance(text, str)
 
+    def test_security_interstitial_detection(self):
+        """Recognize Bunny Shield HTML and extracted verification text."""
+        bunny_html = """
+        <html>
+            <script src="/.bunny-shield/assets/shield-challenge.js"></script>
+            <body>We are checking your browser to establish a secure connection.</body>
+        </html>
+        """
+        jina_text = """
+        ## Performing security verification
+
+        This website uses a security service to protect against malicious bots.
+        """
+
+        assert self.fetcher._is_security_interstitial(bunny_html) is True
+        assert self.fetcher._is_security_interstitial(jina_text) is True
+
+    def test_security_interstitial_detection_ignores_normal_noscript_text(self):
+        """Do not reject ordinary pages that merely recommend enabling JS."""
+        content = "JavaScript is disabled. For a better experience, please enable JavaScript."
+
+        assert self.fetcher._is_security_interstitial(content) is False
+
     # --- Auto JS rendering fallback tests ---
+
+    @pytest.mark.asyncio
+    async def test_new_browser_page_uses_non_automation_profile(self):
+        """Browser fallback should not advertise Playwright's default profile."""
+        browser = AsyncMock()
+        browser.version = "149.0.7827.0"
+        page = AsyncMock()
+        browser.new_page.return_value = page
+
+        result = await self.fetcher._new_browser_page(browser)
+
+        browser.new_page.assert_awaited_once_with(
+            user_agent=(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/149.0.7827.0 Safari/537.36"
+            ),
+            locale="en-US",
+            viewport={"width": 1365, "height": 768},
+        )
+        page.add_init_script.assert_awaited_once_with(self.fetcher._BROWSER_INIT_SCRIPT)
+        assert result is page
+
+    @pytest.mark.asyncio
+    async def test_launch_browser_avoids_single_process_fingerprint(self):
+        """Chromium launch flags should reduce the automation fingerprint."""
+        original_playwright = WebContentFetcher._playwright
+        original_browser = WebContentFetcher._browser
+        manager = AsyncMock()
+        playwright = AsyncMock()
+        browser = AsyncMock()
+        manager.start.return_value = playwright
+        playwright.chromium.launch.return_value = browser
+
+        WebContentFetcher._playwright = None
+        WebContentFetcher._browser = None
+        try:
+            with patch("playwright.async_api.async_playwright", return_value=manager):
+                result = await self.fetcher._launch_browser()
+
+            launch_kwargs = playwright.chromium.launch.await_args.kwargs
+            assert "--disable-blink-features=AutomationControlled" in launch_kwargs["args"]
+            assert "--single-process" not in launch_kwargs["args"]
+            assert result is browser
+        finally:
+            WebContentFetcher._playwright = original_playwright
+            WebContentFetcher._browser = original_browser
+
+    @pytest.mark.asyncio
+    async def test_browser_fallback_rejects_security_interstitial(self):
+        """A rendered challenge page is not successful browser content."""
+        url = "https://example.com/protected"
+        challenge_html = """
+        <html>
+            <script src="/.bunny-shield/assets/shield-challenge.js"></script>
+            <body>Calculating...</body>
+        </html>
+        """
+
+        with patch.object(
+            self.fetcher,
+            "_render_with_browser",
+            new_callable=AsyncMock,
+            return_value=challenge_html,
+        ):
+            with patch.object(self.fetcher, "_parse_html_content") as mock_parse:
+                result = await self.fetcher._try_browser_fallback(url)
+
+        assert result is None
+        mock_parse.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_static_security_interstitial_tries_browser(self):
+        """A parseable HTTP 200 challenge should still use browser fallback."""
+        url = "https://example.com/protected"
+        challenge_html = """
+        <html><body>
+            This website is using a security service to protect itself from online attacks.
+        </body></html>
+        """
+        mock_response = AsyncMock()
+        mock_response.headers = {"content-type": "text/html"}
+        mock_response.content = challenge_html.encode()
+        mock_response.text = challenge_html
+        mock_response.raise_for_status = lambda: None
+
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.get.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            with patch.object(
+                self.fetcher,
+                "_try_browser_fallback",
+                new_callable=AsyncMock,
+                return_value="Rendered article content",
+            ) as mock_browser:
+                content, _, _, _ = await self.fetcher.fetch_and_parse(url)
+
+        mock_browser.assert_awaited_once_with(url)
+        assert content == "Rendered article content"
+
+    @pytest.mark.asyncio
+    async def test_jina_rejects_security_interstitial(self):
+        """Jina verification text should raise instead of becoming success output."""
+        url = "https://example.com/protected"
+        mock_response = AsyncMock()
+        mock_response.text = (
+            "## Performing security verification\n\n"
+            "This website uses a security service to protect against malicious bots."
+        )
+        mock_response.raise_for_status = lambda: None
+
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client.__aenter__.return_value = mock_client
+            mock_client.get.return_value = mock_response
+            mock_client_cls.return_value = mock_client
+
+            with pytest.raises(SearchException, match="security verification interstitial"):
+                await self.fetcher._fetch_via_jina(url)
 
     @pytest.mark.asyncio
     async def test_browser_fallback_on_empty_static(self):
