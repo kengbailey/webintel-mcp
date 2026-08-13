@@ -16,6 +16,23 @@ class WebContentFetcher:
     _playwright = None
     _browser = None
 
+    _SECURITY_INTERSTITIAL_MARKERS = (
+        "/.bunny-shield/",
+        "bunny_shield",
+        "bunnyshield-challenge-response",
+    )
+    _SECURITY_INTERSTITIAL_PHRASES = (
+        "this website is using a security service to protect itself from online attacks",
+        "we are checking your browser to establish a secure connection",
+        "this website uses a security service to protect against malicious bots",
+        "performing security verification",
+    )
+    _BROWSER_INIT_SCRIPT = """
+        Object.defineProperty(navigator, "webdriver", {
+            get: () => undefined,
+        });
+    """
+
     def __init__(self):
         self.headers = {
             "User-Agent": SearchConfig.USER_AGENT
@@ -38,6 +55,40 @@ class WebContentFetcher:
         if content_start and content_start.startswith(b'%PDF'):
             return True
         return False
+
+    @classmethod
+    def _is_security_interstitial(cls, content: str) -> bool:
+        """Return whether content is a bot/security verification page."""
+        if not content:
+            return False
+
+        normalized = content.casefold()
+        if any(marker in normalized for marker in cls._SECURITY_INTERSTITIAL_MARKERS):
+            return True
+
+        # Challenge pages are short. Restrict phrase matching so an article that
+        # discusses bot protection is not mistaken for an interstitial.
+        return len(content) <= 10_000 and any(
+            phrase in normalized for phrase in cls._SECURITY_INTERSTITIAL_PHRASES
+        )
+
+    @staticmethod
+    def _browser_user_agent(browser) -> str:
+        """Build a normal Chrome UA that matches the bundled Chromium version."""
+        return (
+            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+            f"(KHTML, like Gecko) Chrome/{browser.version} Safari/537.36"
+        )
+
+    async def _new_browser_page(self, browser):
+        """Create a browser page with a normal, non-automation profile."""
+        page = await browser.new_page(
+            user_agent=self._browser_user_agent(browser),
+            locale="en-US",
+            viewport={"width": 1365, "height": 768},
+        )
+        await page.add_init_script(self._BROWSER_INIT_SCRIPT)
+        return page
 
     @staticmethod
     def _clean_browser_html(html: str) -> str:
@@ -76,7 +127,7 @@ class WebContentFetcher:
             args=[
                 "--disable-dev-shm-usage",
                 "--no-sandbox",
-                "--single-process",
+                "--disable-blink-features=AutomationControlled",
             ],
         )
         return WebContentFetcher._browser
@@ -105,11 +156,11 @@ class WebContentFetcher:
         """
         browser = await self._ensure_browser()
         try:
-            page = await browser.new_page()
+            page = await self._new_browser_page(browser)
         except Exception:
             # Browser died between check and use — re-launch once
             browser = await self._launch_browser()
-            page = await browser.new_page()
+            page = await self._new_browser_page(browser)
         try:
             timeout_ms = int(SearchConfig.RENDER_TIMEOUT * 1000)
             try:
@@ -137,12 +188,18 @@ class WebContentFetcher:
 
                 is_truncated = False
                 text = response.text
+                if self._is_security_interstitial(text):
+                    raise SearchException(
+                        "Jina Reader returned a security verification interstitial"
+                    )
                 if len(text) > SearchConfig.MAX_CONTENT_LENGTH:
                     text = text[:SearchConfig.MAX_CONTENT_LENGTH] + "... [content truncated]"
                     is_truncated = True
 
                 return text, is_truncated
 
+        except SearchException:
+            raise
         except Exception as e:
             raise SearchException(f"Failed to fetch via Jina Reader: {e}")
 
@@ -216,9 +273,11 @@ class WebContentFetcher:
         """
         try:
             html = await self._render_with_browser(url)
+            if self._is_security_interstitial(html):
+                return None
             html = self._clean_browser_html(html)
             text = self._parse_html_content(html, url=url, favor_recall=True)
-            if text and text.strip():
+            if text and text.strip() and not self._is_security_interstitial(text):
                 return text
         except Exception:
             pass
@@ -270,8 +329,14 @@ class WebContentFetcher:
                 # Parse as HTML with trafilatura
                 text = self._parse_html_content(response.text, url=url)
 
-                # If static extraction returned content, return it
-                if text and text.strip():
+                # If static extraction returned real content, return it. Some
+                # bot challenges use HTTP 200 and otherwise look parseable.
+                if (
+                    text
+                    and text.strip()
+                    and not self._is_security_interstitial(response.text)
+                    and not self._is_security_interstitial(text)
+                ):
                     return self._apply_offset_and_chunk(text, offset)
 
                 # Empty static result → try JS rendering fallback
