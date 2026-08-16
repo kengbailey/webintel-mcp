@@ -24,6 +24,6 @@ variable "machine_type" {
 
 variable "repo_ref" {
   type        = string
-  default     = "feat/cloud-auth"
+  default     = "main"
   description = "Git ref to deploy. Pin to a tag/SHA for production (after the PR merges, switch to main or a release tag)."
 }
