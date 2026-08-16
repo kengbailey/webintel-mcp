@@ -491,6 +491,25 @@ mcporter call webintel-mcp.fetch_reddit_post reference="https://www.reddit.com/r
 mcporter call webintel-mcp.fetch_subreddit_info subreddit="python"
 ```
 
+## Deployment Scenarios
+
+The same image supports two first-class run modes; authentication is purely
+env-gated (`src/server/auth.py`), so nothing is compiled in.
+
+| | **Simple / LAN** | **Cloud (GCP)** |
+|---|---|---|
+| Compose file | `docker-compose.yml` | `docker-compose.cloud.yml` |
+| Auth | none (leave `MCP_AUTHKIT_DOMAIN`/`MCP_BASE_URL` unset) | OAuth 2.1 (WorkOS AuthKit) + machine HMAC-JWT |
+| Ingress | LAN port `3090` | Cloudflare Tunnel only (port bound to localhost) |
+| Secrets | local `.env` | GCP Secret Manager (see `deploy/README.md`) |
+| Search egress | direct or VPN (`--profile vpn`) | datacenter IP |
+| YouTube egress | direct/`YOUTUBE_PROXY_URL` | residential proxy via `YOUTUBE_PROXY_URL` |
+
+`searxng/settings.yml` is shared by both modes: it enables the union of
+engines that work from at least one egress class and relies on SearxNG's
+automatic suspension to silence the rest (see comments in that file).
+Full cloud provisioning lives in `deploy/` (Terraform + scripts).
+
 ## Docker Options
 
 ### Option A: Bundled SearxNG (recommended)
