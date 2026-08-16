@@ -54,7 +54,30 @@ class TestSearxngClient:
         assert result.query == 'test query'
         assert len(result.results) == 1
         assert result.results[0].title == 'Test Result'
-    
+
+    @patch('src.core.search.requests.get')
+    def test_search_raw_without_number_of_results(self, mock_get):
+        """Test parsing responses from newer SearxNG releases, which omit
+        the number_of_results field entirely."""
+        mock_response = Mock()
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            'query': 'test query',
+            'results': [{
+                'url': 'http://example.com',
+                'title': 'Test Result',
+                'engine': 'test'
+            }],
+            'unresponsive_engines': [['duckduckgo', 'CAPTCHA']]
+        }
+        mock_get.return_value = mock_response
+
+        result = self.client._search_raw('test query')
+
+        assert isinstance(result, RawSearxngResponse)
+        assert result.number_of_results == 0
+        assert len(result.results) == 1
+
     @patch('src.core.search.requests.get')
     def test_search_raw_request_failure(self, mock_get):
         """Test search request failure."""

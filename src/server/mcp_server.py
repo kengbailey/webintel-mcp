@@ -10,6 +10,7 @@ from typing import List, Annotated, Optional
 from pydantic import Field
 from fastmcp import FastMCP
 from .handlers import SearchHandlers
+from .auth import build_auth
 from ..core.models import (
     SearchResultOutput, 
     VideoSearchResultOutput, 
@@ -23,8 +24,9 @@ from ..core.models import (
 )
 
 
-# Create the MCP server
-mcp = FastMCP("WebIntel MCP")
+# Create the MCP server. `auth` is None (no auth) unless cloud auth env vars
+# are set (see src/server/auth.py).
+mcp = FastMCP("WebIntel MCP", auth=build_auth())
 handlers = SearchHandlers()
 
 

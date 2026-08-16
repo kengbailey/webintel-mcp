@@ -87,7 +87,9 @@ class RawResult(BaseModel):
 
 class RawSearxngResponse(BaseModel):
     query: str
-    number_of_results: int
+    # SearxNG removed number_of_results from its JSON output in newer
+    # releases; older versions still send it. Default keeps both parseable.
+    number_of_results: int = 0
     results: List[RawResult]
     answers: List[dict] = []
     corrections: List[str] = []

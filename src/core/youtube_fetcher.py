@@ -81,8 +81,8 @@ class YouTubeContentFetcher:
                 },
                 'nocheckcertificate': True,
                 'verbose': True,  # Show detailed output for debugging
-                # Proxy configuration for VPN routing
-                'proxy': SearchConfig.PROXY_URL,
+                # YouTube-specific proxy (falls back to PROXY_URL; see config)
+                'proxy': SearchConfig.YOUTUBE_PROXY_URL,
             }
 
             # Download — js_runtimes must be set post-init for yt-dlp to pick up

@@ -71,6 +71,8 @@ services:
       - STT_MODEL
       - STT_API_KEY
       - PROXY_URL
+      # YouTube egress: empty = direct residential (bypasses VPN; see config.py)
+      - YOUTUBE_PROXY_URL=${YOUTUBE_PROXY_URL:-}
       - REDDIT_CLIENT_ID
       - REDDIT_CLIENT_SECRET
       - REDDIT_USER_AGENT
