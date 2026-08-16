@@ -38,7 +38,10 @@ services:
       - ./gluetun:/gluetun
     ports:
       - "8888:8888"
-      - "8080:8080"  # SearxNG (exposed here when using VPN profile)
+      # SearxNG host port (VPN profile). Override when 8080 is taken on the
+      # host (e.g. SEARXNG_VPN_HOST_PORT=18080); internal consumers use the
+      # docker network (http://gluetun:8080) and are unaffected.
+      - "${SEARXNG_VPN_HOST_PORT:-8080}:8080"
     restart: unless-stopped
 
   # SearxNG routed through VPN — replaces standalone searxng when using --profile vpn
