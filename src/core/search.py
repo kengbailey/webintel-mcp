@@ -6,10 +6,11 @@ import requests
 from typing import List, Optional, Union
 
 from .models import (
-    GeneralSearchResult, 
-    VideoSearchResult, 
+    GeneralSearchResult,
+    VideoSearchResult,
     RawSearxngResponse
 )
+from .result_quality import postprocess_results
 from .config import (
     SearchConfig, 
     SearchRequestException, 
@@ -116,23 +117,28 @@ class SearxngClient:
             language: Language code filter (e.g., 'en', 'de')
             
         Returns:
-            List of GeneralSearchResult objects
+            List of GeneralSearchResult objects, sorted by score descending
+            and quality-filtered (low-score, untitled, and duplicate-URL
+            results removed), so fewer than max_results may be returned
         """
         if max_results is None:
             max_results = SearchConfig.DEFAULT_GENERAL_RESULTS
         elif max_results > SearchConfig.MAX_GENERAL_RESULTS:
             max_results = SearchConfig.MAX_GENERAL_RESULTS
-        
+
+        # Fetch the full merged pool (no slicing) so quality filtering,
+        # sorting, and dedup see every candidate before truncation.
         raw_response = self._search_raw(
-            query, 
+            query,
             categories=categories,
             time_range=time_range,
-            language=language,
-            max_results=max_results
+            language=language
         )
-        
+
+        processed = postprocess_results(raw_response.results, max_results)
+
         results = []
-        for result in raw_response.results:
+        for result in processed:
             results.append(GeneralSearchResult(
                 title=result.title,
                 url=result.url,

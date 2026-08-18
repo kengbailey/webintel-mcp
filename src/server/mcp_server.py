@@ -46,7 +46,7 @@ def search(
         max_length=500
     )],
     max_results: Annotated[int, Field(
-        description="Maximum number of results to return (default: 10, min: 1, max: 25)",
+        description="Maximum number of results to return (default: 10, min: 1, max: 25). This is an upper bound: results are quality-filtered (low-score, untitled, and duplicate results removed), so fewer may be returned",
         ge=1,
         le=25
     )] = 10,
@@ -62,11 +62,13 @@ def search(
 ) -> List[SearchResultOutput]:
     """
     Perform a general web search using SearxNG.
-    
+
     Supports filtering by category, time range, and language.
-    
+
     Returns:
-        List of search results with title, url, content, score
+        List of search results with title, url, content, score, sorted by
+        score descending. Results are quality-filtered before max_results
+        is applied, so fewer than max_results may be returned.
     """
     return handlers.search(query, max_results, categories, time_range, language)
 

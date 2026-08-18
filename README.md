@@ -12,6 +12,12 @@ A FastMCP server providing web search, content fetching, YouTube transcription, 
 
 - **`search`** — Web search via SearxNG
 
+  Results are sorted by score descending and quality-filtered before
+  `max_results` is applied: low-score results (score ≤ 0.40), results with
+  empty titles, and duplicate URLs (tracking-parameter, `www.`/mobile-host,
+  and trailing-slash variants) are removed. `max_results` is therefore an
+  upper bound — fewer results than requested can be returned.
+
   <table>
   <tr>
   <td>

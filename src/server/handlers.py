@@ -47,13 +47,15 @@ class SearchHandlers:
         
         Args:
             query: The search query to execute
-            max_results: Maximum number of results to return (default: 10, max: 25)
+            max_results: Maximum number of results to return (default: 10, max: 25).
+                An upper bound — quality filtering can leave fewer results.
             categories: Search categories (e.g., 'general', 'news', 'science', 'it', 'music')
             time_range: Time filter ('day', 'month', 'year')
             language: Language code filter (e.g., 'en', 'de', 'fr')
-            
+
         Returns:
-            List of search results with title, url, content, score
+            List of search results with title, url, content, score, sorted
+            by score descending
         """
         # Validate query
         if not query or not query.strip():
