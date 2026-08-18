@@ -5,7 +5,6 @@ Provides general web search capabilities via SearxNG
 
 import argparse
 import os
-import sys
 from typing import List, Annotated, Optional
 from pydantic import Field
 from fastmcp import FastMCP
