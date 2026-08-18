@@ -26,6 +26,5 @@ pytest tests/test_search.py
 
 ## Test Files
 
-- `test_search.py` - Core search functionality tests
-- `test_fetch.py` - Web content fetching tests  
-- `test_server.py` - Server handler tests
+Each `test_*.py` file in this directory covers the matching module in
+`src/`; see the module docstring at the top of each test file for scope.
