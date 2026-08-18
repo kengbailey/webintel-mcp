@@ -77,6 +77,14 @@ class TestCanonicalizeUrl:
         assert canonicalize_url("https://example.com:443/a") == \
             canonicalize_url("http://example.com:80/a")
 
+    def test_malformed_port_falls_back_to_raw_string(self):
+        # urlsplit only raises on the malformed port when .port is
+        # accessed; the fallback must cover that lazy ValueError too.
+        assert canonicalize_url("https://example.com:notaport/x") == \
+            "https://example.com:notaport/x"
+        assert canonicalize_url("  https://example.com:99999/x  ") == \
+            "https://example.com:99999/x"
+
 
 class TestScoreThreshold:
     """Strict score > 0.40 boundary."""
@@ -199,6 +207,16 @@ class TestDedup:
         processed = postprocess_results(raw)
         assert len(processed) == 1
         assert processed[0].title == "From engine A"
+
+    def test_malformed_url_result_does_not_abort_pipeline(self):
+        raw = [
+            make_result("https://good.com/page", "Good", 1.0),
+            make_result("https://example.com:notaport/x", "Junk port", 0.8),
+        ]
+        processed = postprocess_results(raw, max_results=10)
+        assert [r.url for r in processed] == [
+            "https://good.com/page", "https://example.com:notaport/x"
+        ]
 
 
 class TestMaxResults:

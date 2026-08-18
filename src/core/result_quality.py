@@ -73,33 +73,34 @@ def canonicalize_url(url: str) -> str:
     fragments are preserved. Falls back to the raw string if parsing
     fails, so an odd URL is never dropped by accident.
     """
+    raw = url.strip()
     try:
-        parts = urlsplit(url.strip())
+        parts = urlsplit(raw)
+
+        scheme = parts.scheme.lower()
+        if scheme == 'http':
+            scheme = 'https'
+
+        host = _canonical_host(parts.hostname or '')
+        port = parts.port
+        # 80/443 are the defaults for the http/https pair this scheme was
+        # normalized from; any other port distinguishes a different server.
+        if port and not (scheme == 'https' and port in (80, 443)):
+            host = f"{host}:{port}"
+
+        path = parts.path.rstrip('/')
+
+        query_pairs = [
+            (key, value)
+            for key, value in parse_qsl(parts.query, keep_blank_values=True)
+            if key.lower() not in _TRACKING_PARAMS
+            and not key.lower().startswith(_TRACKING_PREFIXES)
+        ]
+        query = urlencode(sorted(query_pairs))
+
+        return urlunsplit((scheme, host, path, query, parts.fragment))
     except ValueError:
-        return url.strip()
-
-    scheme = parts.scheme.lower()
-    if scheme == 'http':
-        scheme = 'https'
-
-    host = _canonical_host(parts.hostname or '')
-    port = parts.port
-    # 80/443 are the defaults for the http/https pair this scheme was
-    # normalized from; any other port distinguishes a different server.
-    if port and not (scheme == 'https' and port in (80, 443)):
-        host = f"{host}:{port}"
-
-    path = parts.path.rstrip('/')
-
-    query_pairs = [
-        (key, value)
-        for key, value in parse_qsl(parts.query, keep_blank_values=True)
-        if key.lower() not in _TRACKING_PARAMS
-        and not key.lower().startswith(_TRACKING_PREFIXES)
-    ]
-    query = urlencode(sorted(query_pairs))
-
-    return urlunsplit((scheme, host, path, query, parts.fragment))
+        return raw
 
 
 def postprocess_results(
