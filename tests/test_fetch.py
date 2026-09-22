@@ -538,13 +538,16 @@ class TestWebContentFetcher:
         """Confirm the static fetch path does not call _clean_browser_html when content is found."""
         url = "https://httpbin.org/html"
 
-        with patch.object(
-            WebContentFetcher, "_clean_browser_html", wraps=WebContentFetcher._clean_browser_html,
-        ) as mock_clean:
-            content, _, _, _ = await self.fetcher.fetch_and_parse(url)
-
-            mock_clean.assert_not_called()
-            assert len(content) > 0
+        response = httpx.Response(200, text="<html><body><article><p>Static article content.</p></article></body></html>",
+                                  headers={"content-type": "text/html"}, request=httpx.Request("GET", url))
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as client_cls:
+            client_cls.return_value.__aenter__.return_value.get = AsyncMock(return_value=response)
+            with patch.object(
+                WebContentFetcher, "_clean_browser_html", wraps=WebContentFetcher._clean_browser_html,
+            ) as mock_clean:
+                content, _, _, _ = await self.fetcher.fetch_and_parse(url)
+                mock_clean.assert_not_called()
+                assert "Static article content" in content
 
     @pytest.mark.asyncio
     async def test_browser_lazy_singleton(self):

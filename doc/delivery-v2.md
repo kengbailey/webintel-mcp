@@ -1,0 +1,151 @@
+# Bounded delivery v2
+
+Opt-in interface for WebIntel. The existing `src.server.mcp_server` entry point and
+its schemas remain available. **Do not point existing clients at v2 without
+refreshing their tool catalogs.** Search still uses SearxNG: paid-provider selection
+is deliberately independent of this change.
+
+## Run
+
+Install `requirements.txt` in a Python 3.11+ virtual environment, then:
+
+```sh
+python -m src.server.delivery_server --host 127.0.0.1 --port 3091
+# Legacy clients that need SSE:
+python -m src.server.delivery_server --port 3091 --transport sse
+```
+
+HTTP endpoint `/mcp`; SSE endpoint `/sse`. No deployment/Compose edits are needed
+to try v2 on a separate port. Existing AuthKit and machine JWT configuration is
+reused, with the new endpoint's correct public resource URL when authentication
+is enabled. Bind to a LAN address explicitly if needed; default is loopback.
+
+## Contract
+
+Every successful tool returns typed `Result[T]`:
+
+```json
+{
+  "schema_version": 2,
+  "status": "ok",
+  "data": {"items": []},
+  "page": {"returned": 0, "has_more": false, "next_cursor": null},
+  "meta": {"source": "reddit", "truncated": false, "fetched_at": 1790000000.0, "warnings": []}
+}
+```
+
+`returned` means items for listings, characters for content chunks. Errors use MCP
+`isError` and a JSON text object containing stable `code` and safe `message`.
+Invalid MCP arguments use framework validation errors. Empty results are success.
+Unavailable values are null rather than fabricated zeros.
+
+Both the text fallback and structured result carry the same bounded payload.
+Clients should consume one representation, not concatenate both. JSON alone does
+not reduce model context consumption.
+
+### Tools
+
+| Tool | Default delivery | Continuation |
+| --- | --- | --- |
+| `search` | 5 web previews (existing search provider) | Same tool + `cursor` if budget overflow |
+| `search_videos` | 5 video previews (existing provider) | Same tool + `cursor` |
+| `fetch_content` | Up to 20,000 chars / 5,000 estimated body tokens | `read_content(cursor)` |
+| `read_content` | Next stored text chunk | Same tool + next cursor |
+| `search_reddit` | 5 previews, optional subreddit/title matching | Same tool + cursor |
+| `fetch_subreddit` | 5 post previews | Same tool + cursor |
+| `fetch_subreddit_info` | Public community metadata | `read_content` for long descriptions |
+| `fetch_reddit_post` | Metadata and bounded post body, **no comments** | `read_content(body_cursor)` |
+| `fetch_reddit_comments` | 10 bounded comments; optional parent/thread focus | Same tool + cursor; `read_content` for long bodies |
+| `fetch_youtube_content` | Metadata and up to 4,000 description chars | `read_content(description_cursor)` |
+| `fetch_youtube_transcript` | Manual captions preferred, automatic captions fallback; timestamped | `read_content` |
+| `fetch_youtube_comments` | 10 top-level comments; `parent_id` explicitly requests replies | Same tool + cursor; `read_content` for long bodies |
+
+Listing `limit` is 1–10. Search previews are at most 300 characters / 150 estimated
+tokens. Individual comment bodies initially return up to 1,200 characters, with
+lossless continuation. Entire listing data is capped at 16,000 serialized chars /
+4,000 estimated tokens; envelope overhead is additional. Shorter-than-requested
+pages are normal. An empty comment page can still have a continuation if Reddit
+expansion returned only additional placeholders or unavailable comments.
+
+On listing continuation, **saved original filters are used**. Omit the original
+query/filter arguments, supply only cursor and desired limit. A cursor from a
+different tool is rejected. `has_more` means more server/provider state is available,
+not that every remaining comment is guaranteed readable.
+
+`fetch_content(mode="outline")` returns Markdown headings. `mode="excerpts"`
+requires `query` and selects matching paragraphs with their original paragraph
+indices. These are explicitly selected views, not summaries or complete coverage.
+For comment/post/description body cursors, only `read_content` is appropriate.
+
+### Storage and budgets
+
+- `o200k_base` token estimate, not a guarantee for every model tokenizer. Special
+  token spellings in source text are treated as ordinary untrusted text.
+- Immutable snapshots: paging text does not refetch the URL or rerun extraction.
+- 15-minute TTL from cursor creation, 128 MiB aggregate cache, 8 MiB individual
+  serialized snapshot limit. LRU eviction can expire a cursor early.
+- Cursors are random opaque capabilities, not encoded upstream comment IDs.
+- Authenticated cursors are scoped to the bearer-token hash. Token rotation may
+  invalidate access to existing cursors; no raw tokens are stored in snapshots.
+- Anonymous LAN callers share a principal. Random cursors are unguessable, but
+  authentication is required for caller isolation. Do not share cursor values.
+- Cache is process-local and lost on restart. Multi-worker deployments need shared
+  storage or sticky routing before adoption; v2 currently targets one process.
+- Overflow items from an upstream page are retained before following its next-page
+  token. Long comment bodies retain full bounded text behind body cursors.
+
+## Fetch behavior
+
+The v2 fetcher reuses a lifecycle-managed HTTP client, understands native Markdown
+and plain text, offloads HTML extraction, and bounds decompressed downloads.
+Browser rendering has a two-page concurrency limit and uses DOM load plus bounded
+text stability rather than requiring network idle. The complete web operation has
+a 35-second deadline, inside a 45-second tool deadline. Browser pages and metadata
+subprocesses are cleaned up on cancellation.
+
+Only public HTTP(S) targets without URL credentials are supported. Initial URLs,
+static redirects and browser requests undergo address checks; private/loopback/
+reserved targets are rejected. This is not a DNS-rebinding-proof network sandbox;
+untrusted/public deployments should additionally enforce network egress policy.
+Existing proxy controls remain in use. Jina fallback is still public-URL-only.
+
+The legacy Jina/PDF path is fixed too: it no longer destroys the rest of the
+content before offset pagination. Legacy chunk size/schema otherwise remains
+unchanged. v2 is where the new 20k + token-budget defaults apply.
+
+## Credentials and limitations
+
+- Reddit: existing `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET`, `REDDIT_USER_AGENT`
+  and optional `REDDIT_PROXY_URL`.
+- YouTube: optional **`YOUTUBE_API_KEY`** for official metadata; **required** for
+  stable comments/replies pagination. Missing key returns `NOT_CONFIGURED` for
+  comments. No account or key is needed for best-effort yt-dlp metadata/captions.
+- `YOUTUBE_PROXY_URL` retains the existing per-provider routing behavior.
+- No automatic audio download or STT in v2. Legacy explicit transcript/STT tooling
+  remains available through the legacy server. Adding opt-in asynchronous STT is
+  separate work; it is not silently triggered when captions are absent.
+- Public dislike count is null. Owner-authorized dislikes and third-party estimates
+  are not implemented; descriptions never imply otherwise.
+- Native Reddit search remains noisy for some queries; compact output is not a
+  relevance guarantee. Paid web-backed Reddit discovery remains pending provider
+  selection. Title matching is an explicit option, not an automatic query rewrite.
+- `fetch_more_comments` is superseded in v2 by cursor-based
+  `fetch_reddit_comments`; no exposed arrays of expansion IDs are required.
+- FastMCP is pinned to 4.0.5; tiktoken to 0.14.0. This is not a full transitive lock.
+  Dockerfile/Compose are unchanged; the existing Dockerfile's yt-dlp prerelease
+  override must be addressed separately before a reproducibly pinned image rollout.
+
+## Verification
+
+```sh
+python -m pytest tests/ -q -m 'not integration' \
+  --ignore=tests/test_searxng_integration.py \
+  --ignore=tests/test_youtube_integration.py
+```
+
+`test_delivery.py` covers Unicode/special-token losslessness, cursor scope/expiry/
+eviction, immutable snapshots, Jina recovery, overflow retention, comments without
+duplicates, post-only retrieval, metadata without implicit work, API errors, URL
+checks and native Markdown. `test_delivery_transport.py` launches real loopback
+HTTP and SSE servers and verifies schemas and tool errors. These do not claim
+full OAuth browser-flow or all-platform client acceptance.
