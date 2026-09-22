@@ -60,7 +60,13 @@ def guarded(fn):
     @wraps(fn)
     async def wrapper(*args, **kwargs):
         try:
-            async with asyncio.timeout(45):
+            deadline = (
+                300
+                if fn.__name__ == "fetch_youtube_transcript"
+                and kwargs.get("source") == "stt"
+                else 45
+            )
+            async with asyncio.timeout(deadline):
                 return await fn(*args, **kwargs)
         except DeliveryError as exc:
             raise ToolError(
@@ -204,14 +210,20 @@ async def fetch_youtube_transcript(
     reference: Query,
     language: Annotated[str, Field(max_length=30)] = "en",
     max_chars: Budget = 20000,
+    source: Literal["captions", "stt"] = "captions",
 ) -> Result[Content]:
-    """Explicit timestamped captions (manual preferred, automatic fallback). No implicit STT. Continue with read_content. Unavailable language returns CAPTIONS_UNAVAILABLE."""
-    text, source = await service.youtube.transcript(reference, language)
+    """Get a bounded transcript. source=captions (default): manual/automatic YouTube captions, never audio/STT fallback. source=stt: explicitly download audio and use configured STT service; plain text without guaranteed timestamps, up to 25 MiB of audio, 300-second deadline. language selects captions or hints STT. Continue either result with read_content, without retranscribing."""
+    if source == "stt":
+        from ..core.youtube_stt import transcribe
+
+        text, provider = await transcribe(reference, language)
+    else:
+        text, provider = await service.youtube.transcript(reference, language)
     return service.store.content(
         owner(),
         text,
         "https://www.youtube.com/watch?v=" + video_id(reference),
-        source,
+        provider,
         max_chars,
     )
 

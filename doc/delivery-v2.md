@@ -57,7 +57,7 @@ not reduce model context consumption.
 | `fetch_reddit_post` | Metadata and bounded post body, **no comments** | `read_content(body_cursor)` |
 | `fetch_reddit_comments` | 10 bounded comments; optional parent/thread focus | Same tool + cursor; `read_content` for long bodies |
 | `fetch_youtube_content` | Metadata and up to 4,000 description chars | `read_content(description_cursor)` |
-| `fetch_youtube_transcript` | Manual captions preferred, automatic captions fallback; timestamped | `read_content` |
+| `fetch_youtube_transcript` | Captions by default; explicit `source="stt"` uses configured speech service | `read_content` |
 | `fetch_youtube_comments` | 10 top-level comments; `parent_id` explicitly requests replies | Same tool + cursor; `read_content` for long bodies |
 
 Listing `limit` is 1–10. Search previews are at most 300 characters / 150 estimated
@@ -121,9 +121,17 @@ unchanged. v2 is where the new 20k + token-budget defaults apply.
   stable comments/replies pagination. Missing key returns `NOT_CONFIGURED` for
   comments. No account or key is needed for best-effort yt-dlp metadata/captions.
 - `YOUTUBE_PROXY_URL` retains the existing per-provider routing behavior.
-- No automatic audio download or STT in v2. Legacy explicit transcript/STT tooling
-  remains available through the legacy server. Adding opt-in asynchronous STT is
-  separate work; it is not silently triggered when captions are absent.
+- `fetch_youtube_transcript` defaults to `source="captions"` (manual preferred,
+  automatic fallback). Missing captions return `CAPTIONS_UNAVAILABLE`, never STT.
+  Set `source="stt"` to explicitly download audio and transcribe using existing
+  `STT_ENDPOINT`, `STT_MODEL`, and `STT_API_KEY`. `language` hints transcription;
+  STT returns plain text, without guaranteed timestamps. Continuation uses
+  `read_content` without downloading/transcribing again.
+- Explicit STT limits: non-live video, 25 MiB audio upload,
+  64 MiB monitored temporary storage, 120-second download deadline and 300-second
+  tool deadline. Clients should allow at least 300 seconds for this explicit mode.
+  Audio/ffmpeg process group is killed on cancellation; temporary files are removed
+  on success/failure/cancellation. No automatic retries. Other tools retain 45 seconds.
 - Public dislike count is null. Owner-authorized dislikes and third-party estimates
   are not implemented; descriptions never imply otherwise.
 - Native Reddit search remains the Reddit discovery source. Subreddit scope and
