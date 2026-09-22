@@ -1,9 +1,9 @@
 # Bounded delivery v2
 
-Opt-in interface for WebIntel. The existing `src.server.mcp_server` entry point and
+Default container interface for WebIntel. The existing `src.server.mcp_server` entry point and
 its schemas remain available. **Do not point existing clients at v2 without
-refreshing their tool catalogs.** V2 web/video search uses Exa. The legacy entry point and current Compose stack
-still use SearxNG until a separately approved production migration.
+refreshing their tool catalogs.** V2 web/video search uses Exa. Compose no longer includes SearxNG; the legacy
+entry point remains for rollback, with its own legacy provider configuration.
 
 ## Run
 
@@ -146,8 +146,9 @@ unchanged. v2 is where the new 20k + token-budget defaults apply.
 - `fetch_more_comments` is superseded in v2 by cursor-based
   `fetch_reddit_comments`; no exposed arrays of expansion IDs are required.
 - FastMCP is pinned to 4.0.5; tiktoken to 0.14.0. This is not a full transitive lock.
-  Dockerfile/Compose are unchanged; the existing Dockerfile's yt-dlp prerelease
-  override must be addressed separately before a reproducibly pinned image rollout.
+  The container now starts v2, with yt-dlp2026.8.19 and Deno2.9.5 pinned.
+  Compose wires an external runtime env file and has no SearxNG dependency.
+  See [release procedure](release-v2.md); this is not a full transitive/OS lock.
 
 ## Verification
 

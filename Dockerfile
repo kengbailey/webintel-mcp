@@ -8,7 +8,9 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app \
-    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+    PLAYWRIGHT_BROWSERS_PATH=/ms-playwright \
+    MCP_HOST=0.0.0.0 \
+    MCP_PORT=3090
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
@@ -20,7 +22,8 @@ RUN apt-get update && apt-get install -y \
 
 # Install Deno (required for YouTube JS challenges since yt-dlp 2025.11.12)
 # Install to /usr/local so it's accessible to all users
-RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh
+ARG DENO_VERSION=2.9.5
+RUN curl -fsSL https://deno.land/install.sh | DENO_INSTALL=/usr/local sh -s v${DENO_VERSION}
 
 # Verify Deno is installed and accessible
 RUN deno --version
@@ -31,9 +34,6 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
-
-# Install yt-dlp nightly (--pre) for latest YouTube fixes
-RUN pip install --no-cache-dir -U --pre "yt-dlp[default]"
 
 # Install Playwright browsers for JS rendering support
 RUN playwright install --with-deps chromium
@@ -51,4 +51,7 @@ EXPOSE 3090
 
 # Run the server using the new module structure
 # Transport controlled via MCP_TRANSPORT env var (http|sse), defaults to http
-CMD ["python", "-m", "src.server.mcp_server"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD python -c "import os,socket; socket.create_connection(('127.0.0.1',int(os.getenv('MCP_PORT','3090'))),timeout=3).close()"
+
+CMD ["python", "-m", "src.server.delivery_server"]

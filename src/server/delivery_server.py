@@ -6,6 +6,7 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 from contextlib import asynccontextmanager
 from functools import wraps
 from typing import Annotated, Literal
@@ -335,9 +336,13 @@ async def fetch_subreddit_info(subreddit: Query) -> Result[Community]:
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--port", type=int, default=3091)
-    parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--transport", choices=["http", "sse"], default="http")
+    parser.add_argument("--port", type=int, default=int(os.getenv("MCP_PORT", "3091")))
+    parser.add_argument("--host", default=os.getenv("MCP_HOST", "127.0.0.1"))
+    parser.add_argument(
+        "--transport",
+        choices=["http", "sse"],
+        default=os.getenv("MCP_TRANSPORT", "http"),
+    )
     args = parser.parse_args()
     mcp.run(transport=args.transport, host=args.host, port=args.port)
 

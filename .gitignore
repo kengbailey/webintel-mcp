@@ -66,3 +66,9 @@ gluetun/servers.json
 # Terraform local state/providers
 .terraform/
 deploy/terraform/terraform.tfstate*
+
+# Runtime credentials and rollback data
+*.env
+*.env.*
+!runtime.env.example
+release-backups/

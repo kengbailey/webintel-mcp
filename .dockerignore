@@ -66,3 +66,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+# Runtime credentials and rollback data
+*.env
+*.env.*
+!runtime.env.example
+release-backups/

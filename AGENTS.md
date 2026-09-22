@@ -2,9 +2,9 @@
 
 ## Repository Overview
 WebIntel MCP is a FastMCP server providing web search and content retrieval tools.
-- **Stack:** Python 3.9+, FastMCP, Docker
-- **Entry point:** `src/server/mcp_server.py`
-- Search results are quality-post-processed (sort/threshold/dedup, applied
+- **Stack:** Python 3.11+, FastMCP, Docker
+- **Default entry point:** `src/server/delivery_server.py`; legacy `src/server/mcp_server.py` remains for compatibility/rollback.
+- Legacy SearxNG search results are quality-post-processed (sort/threshold/dedup, applied
   before `max_results`) in `src/core/result_quality.py` — see its module
   docstring for the pipeline contract and rationale.
 

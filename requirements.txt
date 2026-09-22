@@ -10,7 +10,7 @@ requests>=2.31.0
 playwright>=1.40.0
 
 # YouTube transcription
-yt-dlp>=2026.2.0
+yt-dlp[default]==2026.8.19
 
 # Testing
 pytest>=8.0.0
