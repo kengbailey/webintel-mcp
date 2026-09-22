@@ -26,7 +26,7 @@ async def isolated_service(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_captions_default_no_stt_and_no_error_fallback(monkeypatch):
+async def test_captions_default_no_stt_and_opt_out_of_error_fallback(monkeypatch):
     captions = AsyncMock(return_value=("[0.0s] captions", "youtube_captions"))
     speech = AsyncMock()
     monkeypatch.setattr(server.service.youtube, "transcript", captions)
@@ -39,7 +39,7 @@ async def test_captions_default_no_stt_and_no_error_fallback(monkeypatch):
         captions.side_effect = DeliveryError("CAPTIONS_UNAVAILABLE", "No captions")
         error = await client.call_tool(
             "fetch_youtube_transcript",
-            {"reference": "jNQXAC9IVRw"},
+            {"reference": "jNQXAC9IVRw", "fallback_to_stt": False},
             raise_on_error=False,
         )
         assert error.is_error and "CAPTIONS_UNAVAILABLE" in error.content[0].text
@@ -151,3 +151,61 @@ async def test_download_cancellation_kills_process_group(monkeypatch, tmp_path):
             await task
         kill.assert_called_once_with(proc.pid, stt.signal.SIGKILL)
         assert proc.returncode == -9
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure",
+    [
+        DeliveryError("CAPTIONS_UNAVAILABLE", "No captions"),
+        DeliveryError("UPSTREAM_ERROR", "Caption fetch failed"),
+        TimeoutError(),
+        httpx.ConnectError("Failed"),
+        ValueError("Malformed captions"),
+    ],
+)
+async def test_caption_failures_automatically_use_stt(monkeypatch, failure):
+    captions = AsyncMock(side_effect=failure)
+    speech = AsyncMock(return_value=("spoken words", "youtube_stt"))
+    monkeypatch.setattr(server.service.youtube, "transcript", captions)
+    monkeypatch.setattr(stt, "transcribe", speech)
+    async with Client(server.mcp) as client:
+        result = await client.call_tool(
+            "fetch_youtube_transcript", {"reference": "jNQXAC9IVRw"}
+        )
+    assert result.structured_content["meta"]["source"] == "youtube_stt"
+    assert "STT fallback" in result.structured_content["meta"]["warnings"][0]
+    speech.assert_awaited_once_with("jNQXAC9IVRw", "en")
+
+
+@pytest.mark.asyncio
+async def test_invalid_reference_never_transcribes(monkeypatch):
+    speech = AsyncMock()
+    monkeypatch.setattr(stt, "transcribe", speech)
+    async with Client(server.mcp) as client:
+        result = await client.call_tool(
+            "fetch_youtube_transcript",
+            {"reference": "https://example.org/"},
+            raise_on_error=False,
+        )
+    assert result.is_error and "INVALID_ARGUMENT" in result.content[0].text
+    speech.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_caption_cancellation_never_transcribes(monkeypatch):
+    started = asyncio.Event()
+
+    async def captions(*args):
+        started.set()
+        await asyncio.Event().wait()
+
+    speech = AsyncMock()
+    monkeypatch.setattr(server.service.youtube, "transcript", captions)
+    monkeypatch.setattr(stt, "transcribe", speech)
+    task = asyncio.create_task(server.fetch_youtube_transcript("jNQXAC9IVRw"))
+    await started.wait()
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    speech.assert_not_awaited()

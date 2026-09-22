@@ -63,7 +63,9 @@ def guarded(fn):
             deadline = (
                 300
                 if fn.__name__ == "fetch_youtube_transcript"
-                and kwargs.get("source") == "stt"
+                and (
+                    kwargs.get("source") == "stt" or kwargs.get("fallback_to_stt", True)
+                )
                 else 45
             )
             async with asyncio.timeout(deadline):
@@ -211,21 +213,38 @@ async def fetch_youtube_transcript(
     language: Annotated[str, Field(max_length=30)] = "en",
     max_chars: Budget = 20000,
     source: Literal["captions", "stt"] = "captions",
+    fallback_to_stt: bool = True,
 ) -> Result[Content]:
-    """Get a bounded transcript. source=captions (default): manual/automatic YouTube captions, never audio/STT fallback. source=stt: explicitly download audio and use configured STT service; plain text without guaranteed timestamps, up to 25 MiB of audio, 300-second deadline. language selects captions or hints STT. Continue either result with read_content, without retranscribing."""
-    if source == "stt":
-        from ..core.youtube_stt import transcribe
+    """Get a bounded transcript. Default: try manual/automatic YouTube captions, then STT on caption failure. source=stt bypasses captions. Set fallback_to_stt=false for captions-only. STT downloads up to 25 MiB audio and uses the configured speech service; timestamps are not guaranteed. STT-enabled requests have a 300-second deadline. language selects captions or hints STT. Continue with read_content without retranscribing; meta.source identifies the actual provider."""
+    from ..core.youtube_stt import transcribe
 
+    ident = video_id(reference)
+    used_fallback = False
+    if source == "stt":
         text, provider = await transcribe(reference, language)
     else:
-        text, provider = await service.youtube.transcript(reference, language)
-    return service.store.content(
+        try:
+            async with asyncio.timeout(45):
+                text, provider = await service.youtube.transcript(reference, language)
+        except Exception as exc:
+            if not fallback_to_stt or (
+                isinstance(exc, DeliveryError) and exc.code == "INVALID_ARGUMENT"
+            ):
+                raise
+            text, provider = await transcribe(reference, language)
+            used_fallback = True
+    result = service.store.content(
         owner(),
         text,
-        "https://www.youtube.com/watch?v=" + video_id(reference),
+        "https://www.youtube.com/watch?v=" + ident,
         provider,
         max_chars,
     )
+    if used_fallback:
+        result.meta.warnings.append(
+            "YouTube caption retrieval failed; used STT fallback"
+        )
+    return result
 
 
 @mcp.tool(annotations=READ)
