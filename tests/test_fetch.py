@@ -36,8 +36,16 @@ class TestWebContentFetcher:
         """Test handling of invalid URL."""
         url = "https://this-domain-does-not-exist-12345.com"
 
-        with pytest.raises(SearchException):
-            await self.fetcher.fetch_and_parse(url)
+        # Test the failure chain, not live DNS/browser behavior.
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as client_cls:
+            client = AsyncMock()
+            client.__aenter__.return_value = client
+            client.get.side_effect = httpx.ConnectError("DNS unavailable")
+            client_cls.return_value = client
+            with patch.object(self.fetcher, "_try_browser_fallback", new_callable=AsyncMock, return_value=None):
+                with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Reader unavailable")):
+                    with pytest.raises(SearchException):
+                        await self.fetcher.fetch_and_parse(url)
 
     @pytest.mark.asyncio
     async def test_content_truncation(self):
@@ -132,7 +140,7 @@ class TestWebContentFetcher:
             mock_client.get.side_effect = httpx.TimeoutException("timed out")
             mock_client_cls.return_value = mock_client
 
-            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")):
+            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")), patch.object(self.fetcher, "_try_browser_fallback", new_callable=AsyncMock, return_value=None):
                 with pytest.raises(SearchException, match=f"Failed to fetch {url}"):
                     await self.fetcher.fetch_and_parse(url)
 
@@ -147,7 +155,7 @@ class TestWebContentFetcher:
             mock_client.get.side_effect = httpx.HTTPError("503 Service Unavailable")
             mock_client_cls.return_value = mock_client
 
-            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")):
+            with patch.object(self.fetcher, "_fetch_via_jina", side_effect=SearchException("Jina broke")), patch.object(self.fetcher, "_try_browser_fallback", new_callable=AsyncMock, return_value=None):
                 with pytest.raises(SearchException, match=f"Failed to fetch {url}"):
                     await self.fetcher.fetch_and_parse(url)
 
@@ -538,13 +546,16 @@ class TestWebContentFetcher:
         """Confirm the static fetch path does not call _clean_browser_html when content is found."""
         url = "https://httpbin.org/html"
 
-        with patch.object(
-            WebContentFetcher, "_clean_browser_html", wraps=WebContentFetcher._clean_browser_html,
-        ) as mock_clean:
-            content, _, _, _ = await self.fetcher.fetch_and_parse(url)
-
-            mock_clean.assert_not_called()
-            assert len(content) > 0
+        response = httpx.Response(200, text="<html><body><article><p>Static article content.</p></article></body></html>",
+                                  headers={"content-type": "text/html"}, request=httpx.Request("GET", url))
+        with patch("src.core.web_fetcher.httpx.AsyncClient") as client_cls:
+            client_cls.return_value.__aenter__.return_value.get = AsyncMock(return_value=response)
+            with patch.object(
+                WebContentFetcher, "_clean_browser_html", wraps=WebContentFetcher._clean_browser_html,
+            ) as mock_clean:
+                content, _, _, _ = await self.fetcher.fetch_and_parse(url)
+                mock_clean.assert_not_called()
+                assert "Static article content" in content
 
     @pytest.mark.asyncio
     async def test_browser_lazy_singleton(self):

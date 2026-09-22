@@ -1,24 +1,5 @@
+# V2 defaults. Existing proxy services can remain during migration.
 services:
-  # Bundled SearxNG instance — provides search API for WebIntel MCP
-  # When using --profile vpn, SearxNG shares Gluetun's network stack
-  # so all its outbound requests route through the VPN.
-  searxng:
-    image: docker.io/searxng/searxng:latest
-    container_name: searxng
-    volumes:
-      - ./searxng:/etc/searxng:rw
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-
-  # Gluetun VPN container — only starts with --profile vpn
-  # Usage: docker compose --profile vpn up -d
-  # When active, SearxNG attaches to Gluetun's network (see searxng-vpn)
-  # and its port 8080 is exposed through Gluetun.
   gluetun:
     profiles: ["vpn"]
     image: qmcgaw/gluetun
@@ -38,53 +19,16 @@ services:
       - ./gluetun:/gluetun
     ports:
       - "8888:8888"
-      # SearxNG host port (VPN profile). Override when 8080 is taken on the
-      # host (e.g. SEARXNG_VPN_HOST_PORT=18080); internal consumers use the
-      # docker network (http://gluetun:8080) and are unaffected.
-      - "${SEARXNG_VPN_HOST_PORT:-8080}:8080"
     restart: unless-stopped
 
-  # SearxNG routed through VPN — replaces standalone searxng when using --profile vpn
-  searxng-vpn:
-    profiles: ["vpn"]
-    image: docker.io/searxng/searxng:latest
-    container_name: searxng-vpn
-    network_mode: "service:gluetun"
-    depends_on:
-      - gluetun
-    volumes:
-      - ./searxng:/etc/searxng:rw
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
 
   webintel-mcp:
     build: .
-    image: webintel-mcp:latest
+    image: ${WEBINTEL_IMAGE:-webintel-mcp:latest}
     container_name: webintel-mcp
     ports:
-      - "3090:3090"
-    environment:
-      - SEARXNG_HOST=${SEARXNG_HOST:-http://searxng:8080}
-      - STT_ENDPOINT
-      - STT_MODEL
-      - STT_API_KEY
-      - PROXY_URL
-      # YouTube egress: empty = direct residential (bypasses VPN; see config.py)
-      - YOUTUBE_PROXY_URL=${YOUTUBE_PROXY_URL:-}
-      - REDDIT_CLIENT_ID
-      - REDDIT_CLIENT_SECRET
-      - REDDIT_USER_AGENT
-      - REDDIT_PROXY_URL
-      # Transport options: http (default) or sse
-      - MCP_TRANSPORT=${MCP_TRANSPORT:-http}
-      # Optional: override port (default: 3090)
-      # - MCP_PORT=3090
-    depends_on:
-      searxng:
-        condition: service_healthy
+      - "${MCP_BIND_ADDRESS:-0.0.0.0}:${MCP_HOST_PORT:-3090}:3090"
+    env_file:
+      - path: ${WEBINTEL_ENV_FILE:-./runtime.env}
+        format: raw
     restart: unless-stopped

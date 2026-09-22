@@ -2,6 +2,7 @@
 Web content fetching functionality
 """
 
+import asyncio
 import httpx
 import trafilatura
 from lxml.html import fromstring, tostring
@@ -186,24 +187,20 @@ class WebContentFetcher:
                     )
                 response.raise_for_status()
 
-                is_truncated = False
                 text = response.text
                 if self._is_security_interstitial(text):
-                    raise SearchException(
-                        "Jina Reader returned a security verification interstitial"
-                    )
-                if len(text) > SearchConfig.MAX_CONTENT_LENGTH:
-                    text = text[:SearchConfig.MAX_CONTENT_LENGTH] + "... [content truncated]"
-                    is_truncated = True
-
-                return text, is_truncated
+                    raise SearchException("Jina Reader returned a security verification interstitial")
+                if len(text.encode()) > 8 * 1024 * 1024:
+                    raise SearchException("Reader document exceeds 8 MiB limit")
+                # Never truncate before pagination: doing so loses subsequent pages.
+                return text, False
 
         except SearchException:
             raise
         except Exception as e:
             raise SearchException(f"Failed to fetch via Jina Reader: {e}")
 
-    def _apply_offset_and_chunk(self, content: str, offset: int) -> tuple[str, bool, int, int]:
+    def _apply_offset_and_chunk(self, content: str, offset: int, max_length: int = None) -> tuple[str, bool, int, int]:
         """
         Apply offset and chunk the content.
 
@@ -219,7 +216,7 @@ class WebContentFetcher:
         if offset >= total_length:
             return "", False, total_length, total_length
 
-        end_pos = min(offset + SearchConfig.MAX_CONTENT_LENGTH, total_length)
+        end_pos = min(offset + (max_length or SearchConfig.MAX_CONTENT_LENGTH), total_length)
         content_chunk = content[offset:end_pos]
         is_truncated = end_pos < total_length
         next_offset = end_pos if is_truncated else total_length
@@ -283,7 +280,7 @@ class WebContentFetcher:
             pass
         return None
 
-    async def fetch_and_parse(self, url: str, offset: int = 0) -> tuple[str, bool, int, int]:
+    async def fetch_and_parse(self, url: str, offset: int = 0, max_length: int = None) -> tuple[str, bool, int, int]:
         """
         Fetch and parse content from a webpage or PDF.
 
@@ -306,7 +303,7 @@ class WebContentFetcher:
             # PDFs always go through Jina
             if self._is_pdf_url(url):
                 content, was_truncated = await self._fetch_via_jina(url)
-                return self._apply_offset_and_chunk(content, offset)
+                return self._apply_offset_and_chunk(content, offset, max_length)
 
             # Standard static fetch path
             async with httpx.AsyncClient(proxy=SearchConfig.PROXY_URL) as client:
@@ -324,10 +321,15 @@ class WebContentFetcher:
 
                 if self._is_pdf_content(content_type, content_start):
                     content, was_truncated = await self._fetch_via_jina(url)
-                    return self._apply_offset_and_chunk(content, offset)
+                    return self._apply_offset_and_chunk(content, offset, max_length)
 
                 # Parse as HTML with trafilatura
-                text = self._parse_html_content(response.text, url=url)
+                if len(response.content) > 8 * 1024 * 1024:
+                    raise SearchException("Document exceeds 8 MiB limit")
+                if any(kind in content_type for kind in ("text/markdown", "text/plain")):
+                    text = response.text
+                else:
+                    text = await asyncio.to_thread(self._parse_html_content, response.text, url)
 
                 # If static extraction returned real content, return it. Some
                 # bot challenges use HTTP 200 and otherwise look parseable.
@@ -337,16 +339,16 @@ class WebContentFetcher:
                     and not self._is_security_interstitial(response.text)
                     and not self._is_security_interstitial(text)
                 ):
-                    return self._apply_offset_and_chunk(text, offset)
+                    return self._apply_offset_and_chunk(text, offset, max_length)
 
                 # Empty static result → try JS rendering fallback
                 browser_text = await self._try_browser_fallback(url)
                 if browser_text:
-                    return self._apply_offset_and_chunk(browser_text, offset)
+                    return self._apply_offset_and_chunk(browser_text, offset, max_length)
 
                 # Still empty → try Jina
                 content, was_truncated = await self._fetch_via_jina(url)
-                return self._apply_offset_and_chunk(content, offset)
+                return self._apply_offset_and_chunk(content, offset, max_length)
 
         except SearchException:
             raise
@@ -354,10 +356,10 @@ class WebContentFetcher:
             # Static fetch timed out → try browser, then Jina
             browser_text = await self._try_browser_fallback(url)
             if browser_text:
-                return self._apply_offset_and_chunk(browser_text, offset)
+                return self._apply_offset_and_chunk(browser_text, offset, max_length)
             try:
                 content, was_truncated = await self._fetch_via_jina(url)
-                return self._apply_offset_and_chunk(content, offset)
+                return self._apply_offset_and_chunk(content, offset, max_length)
             except SearchException:
                 raise SearchException(f"Failed to fetch {url}")
 
@@ -365,10 +367,10 @@ class WebContentFetcher:
             # HTTP error → try browser, then Jina
             browser_text = await self._try_browser_fallback(url)
             if browser_text:
-                return self._apply_offset_and_chunk(browser_text, offset)
+                return self._apply_offset_and_chunk(browser_text, offset, max_length)
             try:
                 content, was_truncated = await self._fetch_via_jina(url)
-                return self._apply_offset_and_chunk(content, offset)
+                return self._apply_offset_and_chunk(content, offset, max_length)
             except SearchException:
                 raise SearchException(f"Failed to fetch {url}")
         except Exception as e:
