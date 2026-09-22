@@ -651,4 +651,5 @@ previews, 20k-character + estimated-token-bounded page delivery, snapshot cursor
 and separately requested Reddit/YouTube comments and captions. Run it alongside
 the legacy server with `python -m src.server.delivery_server --port 3091`.
 The legacy entry point remains available; refresh client tool catalogs before
-switching. Paid search-provider selection and production rollout are separate.
+switching. V2 uses Exa (`EXA_API_KEY`) for bounded web/video search; legacy
+SearxNG packaging and production rollout remain separate.

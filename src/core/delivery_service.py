@@ -19,6 +19,7 @@ from .delivery import (
     clip,
     tokens,
 )
+from .exa_search import ExaSearch
 from .reddit_fetcher import RedditFetcher
 from .public_fetch import PublicWebFetcher
 from .youtube_data import YouTubeData, video_id
@@ -27,6 +28,7 @@ from .youtube_data import YouTubeData, video_id
 class DeliveryService:
     def __init__(self) -> None:
         self.store = SnapshotStore()
+        self.exa = ExaSearch()
         self.reddit = RedditFetcher()
         self.web = PublicWebFetcher()
         self.youtube = YouTubeData()

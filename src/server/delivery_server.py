@@ -17,7 +17,6 @@ from fastmcp.server.dependencies import get_access_token
 from pydantic import Field
 
 from .auth import build_auth
-from .handlers import SearchHandlers
 from ..core.config import SearchException
 from ..core.delivery import (
     Community,
@@ -33,7 +32,6 @@ from ..core.delivery_service import DeliveryService
 from ..core.youtube_data import video_id
 
 service = DeliveryService()
-legacy = SearchHandlers()
 
 
 @asynccontextmanager
@@ -42,6 +40,7 @@ async def lifespan(server):
         yield {}
     finally:
         await service.web.close()
+        await service.exa.close()
 
 
 mcp = FastMCP(
@@ -236,28 +235,30 @@ async def fetch_youtube_comments(
 @mcp.tool(annotations=READ)
 @guarded
 async def search(
-    query: Query | None = None, limit: Limit = 5, cursor: Cursor = None
+    query: Query | None = None,
+    limit: Limit = 5,
+    cursor: Cursor = None,
+    include_domains: Annotated[list[str] | None, Field(max_length=20)] = None,
+    exclude_domains: Annotated[list[str] | None, Field(max_length=20)] = None,
+    start_published_date: Annotated[str | None, Field(max_length=40)] = None,
+    end_published_date: Annotated[str | None, Field(max_length=40)] = None,
 ) -> Result[Listing]:
-    """Compact web search. Current SearxNG provider retained pending paid-provider selection. Snippets only; fetch selected URLs separately."""
+    """Exa web discovery: short snippets, one paid request, no full pages. Domain/path and ISO-8601 published-date filters are explicit. Cursor only drains saved results (no paid call); fetch selected URLs separately."""
     if cursor:
-        return service.listing(
-            owner(),
-            "web_search",
-            service.store.get(owner(), cursor, "web_search"),
+        state = service.store.get(owner(), cursor, "web_search")
+    else:
+        if not query:
+            raise DeliveryError("INVALID_ARGUMENT", "Search query is required")
+        rows = await service.exa.search(
+            query,
             limit,
-            "searxng",
-            preview=True,
+            include_domains,
+            exclude_domains,
+            start_published_date,
+            end_published_date,
         )
-    if not query:
-        raise DeliveryError("INVALID_ARGUMENT", "Search query is required")
-    rows = await asyncio.to_thread(legacy.search, query, limit)
-    state = {
-        "pending": [
-            dict(id=str(i + 1), title=x.title, url=x.url, body=x.content or "")
-            for i, x in enumerate(rows)
-        ]
-    }
-    return service.listing(owner(), "web_search", state, limit, "searxng", preview=True)
+        state = {"pending": rows}
+    return service.listing(owner(), "web_search", state, limit, "exa", preview=True)
 
 
 @mcp.tool(annotations=READ)
@@ -265,34 +266,14 @@ async def search(
 async def search_videos(
     query: Query | None = None, limit: Limit = 5, cursor: Cursor = None
 ) -> Result[Listing]:
-    """Compact YouTube discovery through existing provider; no metadata/transcripts automatically fetched."""
+    """Exa YouTube discovery, snippets only. Rejects non-video URLs. No metadata/transcripts/comments automatically fetched; filtering may return fewer results. Cursor drains saved results without another paid call."""
     if cursor:
-        return service.listing(
-            owner(),
-            "video_search",
-            service.store.get(owner(), cursor, "video_search"),
-            limit,
-            "searxng",
-            preview=True,
-        )
-    if not query:
-        raise DeliveryError("INVALID_ARGUMENT", "Search query is required")
-    rows = await asyncio.to_thread(legacy.search_videos, query, limit)
-    state = {
-        "pending": [
-            dict(
-                id=str(i + 1),
-                title=x.title,
-                url=x.url,
-                body=x.content or "",
-                author=x.author,
-            )
-            for i, x in enumerate(rows)
-        ]
-    }
-    return service.listing(
-        owner(), "video_search", state, limit, "searxng", preview=True
-    )
+        state = service.store.get(owner(), cursor, "video_search")
+    else:
+        if not query:
+            raise DeliveryError("INVALID_ARGUMENT", "Search query is required")
+        state = {"pending": await service.exa.search(query, limit, videos=True)}
+    return service.listing(owner(), "video_search", state, limit, "exa", preview=True)
 
 
 @mcp.tool(annotations=READ)

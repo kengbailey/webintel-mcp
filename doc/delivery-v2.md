@@ -2,8 +2,8 @@
 
 Opt-in interface for WebIntel. The existing `src.server.mcp_server` entry point and
 its schemas remain available. **Do not point existing clients at v2 without
-refreshing their tool catalogs.** Search still uses SearxNG: paid-provider selection
-is deliberately independent of this change.
+refreshing their tool catalogs.** V2 web/video search uses Exa. The legacy entry point and current Compose stack
+still use SearxNG until a separately approved production migration.
 
 ## Run
 
@@ -47,8 +47,8 @@ not reduce model context consumption.
 
 | Tool | Default delivery | Continuation |
 | --- | --- | --- |
-| `search` | 5 web previews (existing search provider) | Same tool + `cursor` if budget overflow |
-| `search_videos` | 5 video previews (existing provider) | Same tool + `cursor` |
+| `search` | 5 Exa web previews | Same tool + `cursor` if budget overflow |
+| `search_videos` | 5 Exa video previews | Same tool + `cursor` |
 | `fetch_content` | Up to 20,000 chars / 5,000 estimated body tokens | `read_content(cursor)` |
 | `read_content` | Next stored text chunk | Same tool + next cursor |
 | `search_reddit` | 5 previews, optional subreddit/title matching | Same tool + cursor |
@@ -127,8 +127,9 @@ unchanged. v2 is where the new 20k + token-budget defaults apply.
 - Public dislike count is null. Owner-authorized dislikes and third-party estimates
   are not implemented; descriptions never imply otherwise.
 - Native Reddit search remains noisy for some queries; compact output is not a
-  relevance guarantee. Paid web-backed Reddit discovery remains pending provider
-  selection. Title matching is an explicit option, not an automatic query rewrite.
+  relevance guarantee. For web-backed discovery, use `search` with
+  `include_domains=["reddit.com/r/selfhosted"]`, then read a selected post with
+  `fetch_reddit_post`. This is indexed web discovery, not live Reddit ranking. Title matching is an explicit option, not an automatic query rewrite.
 - `fetch_more_comments` is superseded in v2 by cursor-based
   `fetch_reddit_comments`; no exposed arrays of expansion IDs are required.
 - FastMCP is pinned to 4.0.5; tiktoken to 0.14.0. This is not a full transitive lock.
@@ -149,3 +150,28 @@ duplicates, post-only retrieval, metadata without implicit work, API errors, URL
 checks and native Markdown. `test_delivery_transport.py` launches real loopback
 HTTP and SSE servers and verifies schemas and tool errors. These do not claim
 full OAuth browser-flow or all-platform client acceptance.
+
+## Exa search configuration
+
+Set `EXA_API_KEY` in the v2 server environment. Keep it in an owner-only runtime
+secret/env file, never in the repository. Missing credentials fail explicitly;
+there is no silent SearxNG fallback. The existing production stack is unchanged.
+
+Each new `search` or `search_videos` call makes one Exa `type=auto` request,
+requesting at most 10 results and 350 text characters per result; delivery further
+clips previews to 300 characters / 150 estimated tokens. No full page, generated
+summary, deep search, automatic retry, or hidden query fan-out is requested.
+Provider result order is preserved, duplicate URLs are removed, and no provider
+score is treated as a cross-provider relevance threshold.
+
+`search` supports `include_domains`, `exclude_domains` (up to 20 domain/path
+filters each), `start_published_date` and `end_published_date` (ISO-8601 timestamps
+with timezone). Prefer domain filters over inserting `site:` into the query.
+`search_videos` restricts discovery to YouTube video paths and validates returned
+video URLs; filtering can produce fewer results, without another paid request.
+
+Exa has no offset pagination here. A cursor only drains already-retrieved results
+that overflowed the response budget; `has_more=false` is not an assertion that the
+web contains no other matches. To discover more, explicitly submit a new query.
+Provider errors return safe codes, never upstream response bodies or credentials.
+Authenticated relevance/latency evaluation is a separate check from mock tests.
