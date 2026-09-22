@@ -126,10 +126,12 @@ unchanged. v2 is where the new 20k + token-budget defaults apply.
   separate work; it is not silently triggered when captions are absent.
 - Public dislike count is null. Owner-authorized dislikes and third-party estimates
   are not implemented; descriptions never imply otherwise.
-- Native Reddit search remains noisy for some queries; compact output is not a
-  relevance guarantee. For web-backed discovery, use `search` with
-  `include_domains=["reddit.com/r/selfhosted"]`, then read a selected post with
-  `fetch_reddit_post`. This is indexed web discovery, not live Reddit ranking. Title matching is an explicit option, not an automatic query rewrite.
+- Native Reddit search remains the Reddit discovery source. Subreddit scope and
+  optional title matching reduce noise; compact output alone is not a relevance
+  guarantee. Authenticated Exa smoke tests returned zero Reddit hits with bare
+  domain, subreddit paths, wildcard paths, and `site:` queries, including with
+  content extraction disabled. Do not recommend Exa as the Reddit replacement
+  based on the earlier anonymous hosted-MCP pilot. Root cause is not established.
 - `fetch_more_comments` is superseded in v2 by cursor-based
   `fetch_reddit_comments`; no exposed arrays of expansion IDs are required.
 - FastMCP is pinned to 4.0.5; tiktoken to 0.14.0. This is not a full transitive lock.
@@ -175,3 +177,14 @@ that overflowed the response budget; `has_more=false` is not an assertion that t
 web contains no other matches. To discover more, explicitly submit a new query.
 Provider errors return safe codes, never upstream response bodies or credentials.
 Authenticated relevance/latency evaluation is a separate check from mock tests.
+
+### Authenticated Oak smoke results (2026-09-22)
+
+Six initial MCP searches completed with a median 1.054 seconds. Nonempty five-item
+responses used 1,040–1,227 estimated tokens. Domain allow/exclude checks and bounded
+preview assertions passed; the publication-date request was accepted, but result
+dates were not independently verified. YouTube returned valid video URLs, though
+only the first result was a direct backup tutorial; ranking still needs judgment.
+Reddit returned zero hits in the initial case and five follow-up variants. Keep
+native Reddit discovery. These are small live smoke tests, not reliability or
+cross-provider superiority measurements. No deployment was performed.
